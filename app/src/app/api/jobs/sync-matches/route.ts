@@ -1,81 +1,65 @@
 import { NextResponse } from "next/server";
-import { PredictionResult, MatchStatus, MatchPhase } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { apiFootball } from "@/lib/api-football";
+import { footballData, normalizeTeamName } from "@/lib/football-data";
+
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(req: Request) {
-  // In a real app, you'd protect this route with a secret key or verify it's a cron job
-  // const authHeader = req.headers.get('authorization');
-  // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return new Response('Unauthorized', { status: 401 });
-  // }
+  if (CRON_SECRET) {
+    const auth = req.headers.get("authorization");
+    if (auth !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+  }
 
   try {
-    const matches = await apiFootball.getMatches();
+    const [liveData, finishedData] = await Promise.all([
+      footballData.getLiveMatches(),
+      footballData.getFinishedMatches(),
+    ]);
 
-    if (!matches || matches.length === 0) {
-      return NextResponse.json({ message: "Nenhum jogo encontrado na API" }, { status: 404 });
-    }
+    const liveMatches: any[] = liveData.matches ?? [];
+    const finishedMatches: any[] = finishedData.matches ?? [];
 
-    let syncedCount = 0;
+    let updatedCount = 0;
 
-    for (const match of matches) {
-      const { fixture, league, teams, score } = match;
+    // Mark live matches
+    for (const apiMatch of liveMatches) {
+      const homeTeam = normalizeTeamName(apiMatch.homeTeam?.name ?? "");
+      const awayTeam = normalizeTeamName(apiMatch.awayTeam?.name ?? "");
+      if (!homeTeam || !awayTeam) continue;
 
-      // Determine match phase and round
-      // This is simplified. In a real scenario, you map API-Football rounds to your MatchPhase enum
-      let phase: MatchPhase = MatchPhase.GRUPOS;
-      if (league.round.includes("Round of 16")) phase = MatchPhase.OITAVAS;
-      if (league.round.includes("Quarter-finals")) phase = MatchPhase.QUARTAS;
-      if (league.round.includes("Semi-finals")) phase = MatchPhase.SEMI;
-      if (league.round.includes("Final")) phase = MatchPhase.FINAL;
-
-      let matchStatus: MatchStatus = MatchStatus.AGENDADO;
-      if (fixture.status.short === "FT" || fixture.status.short === "AET" || fixture.status.short === "PEN") {
-        matchStatus = MatchStatus.ENCERRADO;
-      } else if (["1H", "HT", "2H", "ET", "P", "LIVE"].includes(fixture.status.short)) {
-        matchStatus = MatchStatus.AO_VIVO;
-      }
-
-      let result: PredictionResult | null = null;
-      if (matchStatus === MatchStatus.ENCERRADO) {
-        if (teams.home.winner) result = PredictionResult.CASA;
-        else if (teams.away.winner) result = PredictionResult.FORA;
-        else result = PredictionResult.EMPATE;
-      }
-
-      await prisma.match.upsert({
-        where: { apiId: fixture.id },
-        update: {
-          homeTeam: teams.home.name,
-          awayTeam: teams.away.name,
-          dateTime: new Date(fixture.date),
-          status: matchStatus,
-          result: result,
-        },
-        create: {
-          apiId: fixture.id,
-          phase: phase,
-          round: 1, // You'd need a robust way to extract the round number
-          homeTeam: teams.home.name,
-          awayTeam: teams.away.name,
-          dateTime: new Date(fixture.date),
-          status: matchStatus,
-          result: result,
-        },
+      const updated = await prisma.match.updateMany({
+        where: { homeTeam, awayTeam, status: "AGENDADO" },
+        data: { status: "AO_VIVO" },
       });
-
-      syncedCount++;
+      updatedCount += updated.count;
     }
 
-    return NextResponse.json({ 
-      message: "Sincronização concluída", 
-      syncedCount,
-      totalReceived: matches.length 
-    });
+    // Mark finished matches (without calculating points — sync-results handles that)
+    for (const apiMatch of finishedMatches) {
+      const homeTeam = normalizeTeamName(apiMatch.homeTeam?.name ?? "");
+      const awayTeam = normalizeTeamName(apiMatch.awayTeam?.name ?? "");
+      if (!homeTeam || !awayTeam) continue;
 
-  } catch (error) {
-    console.error("Error syncing matches:", error);
-    return NextResponse.json({ message: "Erro ao sincronizar jogos" }, { status: 500 });
+      const updated = await prisma.match.updateMany({
+        where: { homeTeam, awayTeam, status: "AO_VIVO" },
+        data: { status: "AGENDADO" }, // Temp: sync-results will set ENCERRADO with result
+      });
+      updatedCount += updated.count;
+    }
+
+    return NextResponse.json({
+      message: "Status dos jogos atualizado",
+      liveCount: liveMatches.length,
+      finishedCount: finishedMatches.length,
+      updatedCount,
+    });
+  } catch (error: any) {
+    console.error("sync-matches error:", error);
+    return NextResponse.json(
+      { message: "Erro ao sincronizar jogos", error: error.message },
+      { status: 500 }
+    );
   }
 }

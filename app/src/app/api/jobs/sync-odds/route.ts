@@ -1,61 +1,96 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { apiFootball } from "@/lib/api-football";
+import { oddsApi, normalizeOddsTeamName } from "@/lib/odds-api";
+
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(req: Request) {
-  try {
-    // Get all scheduled matches
-    const upcomingMatches = await prisma.match.findMany({
-      where: { status: "AGENDADO" },
-    });
-
-    if (upcomingMatches.length === 0) {
-      return NextResponse.json({ message: "Nenhum jogo agendado encontrado." });
+  if (CRON_SECRET) {
+    const auth = req.headers.get("authorization");
+    if (auth !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
+  }
+
+  try {
+    const events = await oddsApi.getWorldCupOdds();
 
     let syncedCount = 0;
+    let skippedCount = 0;
 
-    for (const match of upcomingMatches) {
-      const oddsData = await apiFootball.getOdds(match.apiId);
+    for (const event of events) {
+      const apiHome = normalizeOddsTeamName(event.home_team);
+      const apiAway = normalizeOddsTeamName(event.away_team);
 
-      if (oddsData && oddsData.length > 0) {
-        // Find Match Winner market (usually id: 1)
-        const matchWinnerMarket = oddsData[0].bookmakers[0]?.bets.find((b: any) => b.id === 1);
+      // Match by both teams regardless of home/away order (API may differ from our seed)
+      const dbMatch = await prisma.match.findFirst({
+        where: {
+          status: "AGENDADO",
+          OR: [
+            { homeTeam: apiHome, awayTeam: apiAway },
+            { homeTeam: apiAway, awayTeam: apiHome },
+          ],
+        },
+      });
 
-        if (matchWinnerMarket) {
-          const oddHome = parseFloat(matchWinnerMarket.values.find((v: any) => v.value === "Home")?.odd || "1");
-          const oddDraw = parseFloat(matchWinnerMarket.values.find((v: any) => v.value === "Draw")?.odd || "1");
-          const oddAway = parseFloat(matchWinnerMarket.values.find((v: any) => v.value === "Away")?.odd || "1");
-
-          // Determine favorite
-          let favorite: any = "EMPATE";
-          if (oddHome < oddAway && oddHome < oddDraw) favorite = "CASA";
-          if (oddAway < oddHome && oddAway < oddDraw) favorite = "FORA";
-
-          await prisma.odd.create({
-            data: {
-              matchId: match.id,
-              oddHome,
-              oddDraw,
-              oddAway,
-              favorite,
-            },
-          });
-          syncedCount++;
-        }
+      if (!dbMatch) {
+        skippedCount++;
+        continue;
       }
-      
-      // Delay to respect API rate limits (e.g., 10 requests / second)
-      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const bookmaker = event.bookmakers.find((b) =>
+        b.markets.some((m) => m.key === "h2h")
+      );
+      const market = bookmaker?.markets.find((m) => m.key === "h2h");
+
+      if (!market) {
+        skippedCount++;
+        continue;
+      }
+
+      const drawOutcome = market.outcomes.find(
+        (o) => o.name.toLowerCase() === "draw"
+      );
+
+      // Find odds by matching against the DB home/away team names
+      const dbHomeOutcome = market.outcomes.find(
+        (o) => normalizeOddsTeamName(o.name) === dbMatch.homeTeam
+      );
+      const dbAwayOutcome = market.outcomes.find(
+        (o) => normalizeOddsTeamName(o.name) === dbMatch.awayTeam
+      );
+
+      if (!dbHomeOutcome || !dbAwayOutcome || !drawOutcome) {
+        skippedCount++;
+        continue;
+      }
+
+      const oddHome = dbHomeOutcome.price;
+      const oddDraw = drawOutcome.price;
+      const oddAway = dbAwayOutcome.price;
+
+      let favorite: "CASA" | "EMPATE" | "FORA";
+      if (oddHome <= oddAway && oddHome <= oddDraw) favorite = "CASA";
+      else if (oddAway <= oddHome && oddAway <= oddDraw) favorite = "FORA";
+      else favorite = "EMPATE";
+
+      await prisma.odd.create({
+        data: { matchId: dbMatch.id, oddHome, oddDraw, oddAway, favorite },
+      });
+
+      syncedCount++;
     }
 
-    return NextResponse.json({ 
-      message: "Odds sincronizadas com sucesso", 
-      syncedCount 
+    return NextResponse.json({
+      message: "Odds sincronizadas com sucesso",
+      syncedCount,
+      skippedCount,
     });
-
-  } catch (error) {
-    console.error("Error syncing odds:", error);
-    return NextResponse.json({ message: "Erro ao sincronizar odds" }, { status: 500 });
+  } catch (error: any) {
+    console.error("sync-odds error:", error);
+    return NextResponse.json(
+      { message: "Erro ao sincronizar odds", error: error.message },
+      { status: 500 }
+    );
   }
 }

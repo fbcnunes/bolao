@@ -33,12 +33,12 @@ export async function POST(req: Request) {
         continue;
       }
 
-      if (match.status !== "AGENDADO" && new Date() >= match.dateTime) {
+      if (match.status !== "AGENDADO" || new Date() >= match.dateTime) {
         errors.push({ matchId, message: "Este jogo já começou ou está encerrado" });
         continue;
       }
 
-      // Upsert the prediction
+      // Upsert the prediction (oddId may be null for matches without odds)
       const saved = await prisma.prediction.upsert({
         where: {
           userId_matchId: {
@@ -48,15 +48,15 @@ export async function POST(req: Request) {
         },
         update: {
           prediction,
-          oddId,
-          oddTimestamp: new Date(oddTimestamp)
+          oddId: oddId ?? null,
+          oddTimestamp: new Date(),
         },
         create: {
           userId: session.user.id,
           matchId: match.id,
           prediction,
-          oddId,
-          oddTimestamp: new Date(oddTimestamp)
+          oddId: oddId ?? null,
+          oddTimestamp: new Date(),
         }
       });
 

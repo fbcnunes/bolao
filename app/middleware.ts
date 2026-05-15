@@ -22,7 +22,7 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         // Rotas públicas que não precisam de autenticação
-        const publicRoutes = ["/login", "/cadastro", "/api/auth/register"];
+        const publicRoutes = ["/login", "/cadastro", "/api/auth/register", "/api/jobs"];
         if (publicRoutes.some(route => req.nextUrl.pathname.startsWith(route))) {
             return true;
         }

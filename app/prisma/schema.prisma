@@ -56,6 +56,7 @@ model Match {
   apiId       Int          @unique
   phase       MatchPhase
   round       Int
+  group       String       @default("")
   homeTeam    String
   awayTeam    String
   dateTime    DateTime
@@ -84,9 +85,9 @@ model Prediction {
   matchId      String
   match        Match             @relation(fields: [matchId], references: [id])
   prediction   PredictionResult
-  oddId        String
-  odd          Odd               @relation(fields: [oddId], references: [id])
-  oddTimestamp DateTime
+  oddId        String?
+  odd          Odd?              @relation(fields: [oddId], references: [id])
+  oddTimestamp DateTime?
   correct      Boolean?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt

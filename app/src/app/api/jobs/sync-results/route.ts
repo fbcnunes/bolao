@@ -1,108 +1,108 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { apiFootball } from "@/lib/api-football";
+import { footballData, normalizeTeamName } from "@/lib/football-data";
+
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(req: Request) {
+  if (CRON_SECRET) {
+    const auth = req.headers.get("authorization");
+    if (auth !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
+    }
+  }
+
   try {
-    // We only need to check matches that are past their start time and not yet marked as ENCERRADO
-    // Or we just re-fetch matches for today/yesterday to ensure we catch updates
-    
-    // For simplicity, let's fetch recent matches from the API
-    const recentMatches = await apiFootball.getMatches(); // Ideally, filter by date here
-    
+    const data = await footballData.getFinishedMatches();
+    const apiMatches: any[] = data.matches ?? [];
+
     let processedCount = 0;
+    let skippedCount = 0;
 
-    for (const apiMatch of recentMatches) {
-      if (apiMatch.fixture.status.short === "FT" || apiMatch.fixture.status.short === "AET" || apiMatch.fixture.status.short === "PEN") {
-        
-        // Determine result
-        let result: any = "EMPATE";
-        if (apiMatch.teams.home.winner) result = "CASA";
-        else if (apiMatch.teams.away.winner) result = "FORA";
+    for (const apiMatch of apiMatches) {
+      const homeTeam = normalizeTeamName(apiMatch.homeTeam?.name ?? "");
+      const awayTeam = normalizeTeamName(apiMatch.awayTeam?.name ?? "");
+      const homeScore: number = apiMatch.score?.fullTime?.home ?? -1;
+      const awayScore: number = apiMatch.score?.fullTime?.away ?? -1;
 
-        // Find the match in our DB
-        const dbMatch = await prisma.match.findUnique({
-          where: { apiId: apiMatch.fixture.id },
-          include: {
-            predictions: {
-              where: { correct: null } // Only process unprocessed predictions
-            }
-          }
-        });
+      if (!homeTeam || !awayTeam || homeScore < 0 || awayScore < 0) {
+        skippedCount++;
+        continue;
+      }
 
-        if (dbMatch && dbMatch.status !== "ENCERRADO") {
-          // Update match status and result
-          await prisma.match.update({
-            where: { id: dbMatch.id },
-            data: { status: "ENCERRADO", result },
+      let result: "CASA" | "EMPATE" | "FORA";
+      if (homeScore > awayScore) result = "CASA";
+      else if (awayScore > homeScore) result = "FORA";
+      else result = "EMPATE";
+
+      const dbMatch = await prisma.match.findFirst({
+        where: { homeTeam, awayTeam, status: { not: "ENCERRADO" } },
+        include: {
+          predictions: { where: { correct: null } },
+        },
+      });
+
+      if (!dbMatch) {
+        skippedCount++;
+        continue;
+      }
+
+      await prisma.match.update({
+        where: { id: dbMatch.id },
+        data: { status: "ENCERRADO", result },
+      });
+
+      for (const prediction of dbMatch.predictions) {
+        const isCorrect = prediction.prediction === result;
+
+        if (isCorrect) {
+          const pointsEarned = 10;
+
+          await prisma.prediction.update({
+            where: { id: prediction.id },
+            data: { correct: true },
           });
 
-          // Calculate points for predictions
-          for (const prediction of dbMatch.predictions) {
-            const isCorrect = prediction.prediction === result;
-            
-            // Get the odd used for this prediction
-            const odd = await prisma.odd.findUnique({ where: { id: prediction.oddId } });
-            
-            if (isCorrect && odd) {
-              let oddValue = 1;
-              if (result === "CASA") oddValue = odd.oddHome;
-              if (result === "EMPATE") oddValue = odd.oddDraw;
-              if (result === "FORA") oddValue = odd.oddAway;
+          const round = await prisma.round.findFirst({
+            where: { phase: dbMatch.phase, number: dbMatch.round },
+          });
 
-              // Points = odd * 10 (e.g., 2.5 -> 25 points)
-              const pointsEarned = oddValue * 10;
-
-              // Update Prediction
-              await prisma.prediction.update({
-                where: { id: prediction.id },
-                data: { correct: true },
-              });
-
-              // Update Score
-              // Find round first
-              const round = await prisma.round.findFirst({
-                where: { phase: dbMatch.phase, number: dbMatch.round }
-              });
-
-              if (round) {
-                await prisma.score.upsert({
-                  where: {
-                    userId_roundId: { userId: prediction.userId, roundId: round.id }
-                  },
-                  update: {
-                    roundPoints: { increment: pointsEarned },
-                    accumulatedPoints: { increment: pointsEarned }
-                  },
-                  create: {
-                    userId: prediction.userId,
-                    roundId: round.id,
-                    roundPoints: pointsEarned,
-                    accumulatedPoints: pointsEarned
-                  }
-                });
-              }
-
-            } else {
-              // Incorrect prediction
-              await prisma.prediction.update({
-                where: { id: prediction.id },
-                data: { correct: false },
-              });
-            }
+          if (round) {
+            await prisma.score.upsert({
+              where: { userId_roundId: { userId: prediction.userId, roundId: round.id } },
+              update: {
+                roundPoints: { increment: pointsEarned },
+                accumulatedPoints: { increment: pointsEarned },
+              },
+              create: {
+                userId: prediction.userId,
+                roundId: round.id,
+                roundPoints: pointsEarned,
+                accumulatedPoints: pointsEarned,
+              },
+            });
           }
-          processedCount++;
+        } else {
+          await prisma.prediction.update({
+            where: { id: prediction.id },
+            data: { correct: false },
+          });
         }
       }
+
+      processedCount++;
     }
 
-    return NextResponse.json({ 
-      message: "Resultados sincronizados e pontos calculados", 
-      processedCount 
+    return NextResponse.json({
+      message: "Resultados sincronizados",
+      processedCount,
+      skippedCount,
     });
-
-  } catch (error) {
-    console.error("Error syncing results:", error);
-    return NextResponse.json({ message: "Erro ao sincronizar resultados" }, { status: 500 });
+  } catch (error: any) {
+    console.error("sync-results error:", error);
+    return NextResponse.json(
+      { message: "Erro ao sincronizar resultados", error: error.message },
+      { status: 500 }
+    );
   }
 }
