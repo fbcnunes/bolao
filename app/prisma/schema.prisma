@@ -1,0 +1,116 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PARTICIPANTE
+  ADMIN
+}
+
+enum UserStatus {
+  PENDENTE
+  ATIVO
+  RECUSADO
+}
+
+enum MatchPhase {
+  GRUPOS
+  OITAVAS
+  QUARTAS
+  SEMI
+  FINAL
+}
+
+enum MatchStatus {
+  AGENDADO
+  AO_VIVO
+  ENCERRADO
+}
+
+enum PredictionResult {
+  CASA
+  EMPATE
+  FORA
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  email         String       @unique
+  passwordHash  String
+  role          Role         @default(PARTICIPANTE)
+  status        UserStatus   @default(PENDENTE)
+  createdAt     DateTime     @default(now())
+  predictions   Prediction[]
+  scores        Score[]
+}
+
+model Match {
+  id          String       @id @default(cuid())
+  apiId       Int          @unique
+  phase       MatchPhase
+  round       Int
+  homeTeam    String
+  awayTeam    String
+  dateTime    DateTime
+  result      PredictionResult?
+  status      MatchStatus  @default(AGENDADO)
+  odds        Odd[]
+  predictions Prediction[]
+}
+
+model Odd {
+  id          String           @id @default(cuid())
+  matchId     String
+  match       Match            @relation(fields: [matchId], references: [id])
+  oddHome     Float
+  oddDraw     Float
+  oddAway     Float
+  favorite    PredictionResult
+  capturedAt  DateTime         @default(now())
+  predictions Prediction[]
+}
+
+model Prediction {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
+  matchId      String
+  match        Match             @relation(fields: [matchId], references: [id])
+  prediction   PredictionResult
+  oddId        String
+  odd          Odd               @relation(fields: [oddId], references: [id])
+  oddTimestamp DateTime
+  correct      Boolean?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([userId, matchId])
+}
+
+model Round {
+  id              String   @id @default(cuid())
+  phase           MatchPhase
+  number          Int
+  bonusCalculated Boolean  @default(false)
+  scores          Score[]
+}
+
+model Score {
+  id                String @id @default(cuid())
+  userId            String
+  user              User   @relation(fields: [userId], references: [id])
+  roundId           String
+  round             Round  @relation(fields: [roundId], references: [id])
+  roundPoints       Float  @default(0)
+  bonus             Float  @default(0)
+  accumulatedPoints Float  @default(0)
+
+  @@unique([userId, roundId])
+}
