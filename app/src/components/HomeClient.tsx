@@ -33,18 +33,22 @@ type Match = {
   predictions: Prediction[];
 };
 
-const RESULT_LABELS = { CASA: "1", EMPATE: "Empate", FORA: "2" };
 const RESULT_OPTIONS: ("CASA" | "EMPATE" | "FORA")[] = ["CASA", "EMPATE", "FORA"];
 const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+const BTN_LABELS: Record<"CASA" | "EMPATE" | "FORA", string> = { CASA: "1", EMPATE: "X", FORA: "2" };
 
-function MatchCard({
+// ─── Match row ────────────────────────────────────────────────────────────────
+
+function MatchRow({
   match,
   selectedPrediction,
   onSelect,
+  isLast,
 }: {
   match: Match;
   selectedPrediction?: "CASA" | "EMPATE" | "FORA";
   onSelect: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => void;
+  isLast: boolean;
 }) {
   const latestOdd = match.odds[0];
   const existingPrediction = match.predictions[0];
@@ -58,132 +62,194 @@ function MatchCard({
     FORA: latestOdd?.oddAway,
   };
 
-  const statusLabels: Record<Match["status"], string> = {
-    AGENDADO: format(new Date(match.dateTime), "HH:mm", { locale: ptBR }),
-    AO_VIVO: "● Ao Vivo",
-    ENCERRADO: "Encerrado",
-  };
-
-  const cardBorder = isCorrect === true
-    ? "border-brand-primary/50"
-    : isCorrect === false
-    ? "border-red-500/30"
-    : "";
+  const accentColor =
+    isCorrect === true ? "#10B981" : isCorrect === false ? "rgba(239,68,68,0.6)" : "transparent";
 
   return (
-    <div
-      className={`backdrop-blur-md rounded-2xl p-4 transition-all duration-300 border ${cardBorder || ""}`}
-      style={{ background: "var(--bg-card)", borderColor: cardBorder ? undefined : "var(--border-base)" }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-          Grupo {match.group}
+    <>
+      <div className="flex items-center gap-2 py-2.5 border-l-2 pl-3" style={{ borderColor: accentColor }}>
+        {/* Grupo */}
+        <span className="text-[10px] font-bold uppercase w-5 flex-shrink-0 text-center" style={{ color: "var(--text-muted)" }}>
+          {match.group}
         </span>
-        {match.status === "AGENDADO" ? (
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>
-            {statusLabels[match.status]}
-          </span>
-        ) : match.status === "AO_VIVO" ? (
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-500/20 text-red-400 animate-pulse">
-            {statusLabels[match.status]}
-          </span>
-        ) : (
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--bg-card2)", color: "var(--text-muted)" }}>
-            {statusLabels[match.status]}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center justify-between gap-2 mb-4">
-        <div className="flex-1 text-center">
-          <p className="font-bold text-base leading-tight" style={{ color: "var(--text-primary)" }}>{match.homeTeam}</p>
-          {match.result === "CASA" && <span className="text-xs text-brand-primary font-semibold">Vencedor</span>}
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>VS</span>
-          {match.status === "ENCERRADO" && match.result === "EMPATE" && (
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Empate</span>
-          )}
-        </div>
-        <div className="flex-1 text-center">
-          <p className="font-bold text-base leading-tight" style={{ color: "var(--text-primary)" }}>{match.awayTeam}</p>
-          {match.result === "FORA" && <span className="text-xs text-brand-primary font-semibold">Vencedor</span>}
-        </div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {RESULT_OPTIONS.map((option) => {
-          const isSelected = currentPick === option;
-          const isWinner = match.status === "ENCERRADO" && match.result === option;
-          const isWrong = isLocked && isSelected && match.result && match.result !== option;
-          const isFavorite = latestOdd?.favorite === option;
-
-          let btnClass = "relative flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-semibold transition-all duration-200";
-          let btnStyle: React.CSSProperties = {};
-
-          if (isWrong) {
-            btnClass += " bg-red-500/20 text-red-400 ring-1 ring-red-500/30";
-          } else if (isSelected || isWinner) {
-            btnClass += " bg-brand-primary text-white shadow-lg shadow-brand-primary/30 scale-105";
-            if (isWinner) btnClass += " ring-2 ring-brand-primary/50";
-          } else {
-            btnStyle = { background: "var(--bg-card2)", color: "var(--text-secondary)" };
-          }
-
-          if (isLocked) {
-            btnClass += " cursor-not-allowed opacity-80";
-          } else {
-            btnClass += " cursor-pointer active:scale-95";
-            if (!isSelected && !isWinner && !isWrong) btnClass += " hover:opacity-80";
-          }
-
-          return (
-            <button
-              key={option}
-              onClick={() => !isLocked && onSelect(match.id, option, latestOdd?.id ?? null)}
-              disabled={isLocked}
-              className={btnClass}
-              style={btnStyle}
+        {/* Teams + status */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1 min-w-0">
+            <span
+              className={`text-xs font-semibold truncate ${match.result === "CASA" ? "text-brand-primary" : ""}`}
+              style={match.result !== "CASA" ? { color: "var(--text-primary)" } : {}}
             >
-              {isFavorite && !isLocked && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-secondary rounded-full"></span>
-              )}
-              <span>{RESULT_LABELS[option]}</span>
-              <span className={`text-[10px] mt-0.5 ${isSelected && !isWrong ? "text-white/80" : ""}`} style={!(isSelected && !isWrong) ? { color: "var(--text-muted)" } : {}}>
-                {oddValues[option] ? oddValues[option]?.toFixed(2) : "—"}
+              {match.homeTeam}
+            </span>
+            <span className="text-[10px] font-bold flex-shrink-0" style={{ color: "var(--text-muted)" }}>×</span>
+            <span
+              className={`text-xs font-semibold truncate ${match.result === "FORA" ? "text-brand-primary" : ""}`}
+              style={match.result !== "FORA" ? { color: "var(--text-secondary)" } : {}}
+            >
+              {match.awayTeam}
+            </span>
+          </div>
+          <div className="mt-0.5">
+            {match.status === "AO_VIVO" ? (
+              <span className="text-[9px] font-bold text-red-400 animate-pulse">● Ao Vivo</span>
+            ) : match.status === "ENCERRADO" ? (
+              <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
+                Encerrado{match.result === "EMPATE" ? " · Empate" : ""}
               </span>
-            </button>
-          );
-        })}
+            ) : (
+              <span className="text-[9px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                {format(new Date(match.dateTime), "HH:mm", { locale: ptBR })}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-1 flex-shrink-0">
+          {RESULT_OPTIONS.map((option) => {
+            const isSelected = currentPick === option;
+            const isWinner = match.status === "ENCERRADO" && match.result === option;
+            const isWrong = isLocked && isSelected && match.result && match.result !== option;
+            const isFavorite = latestOdd?.favorite === option;
+
+            let cls = "relative flex flex-col items-center justify-center w-10 h-10 rounded-lg text-[11px] font-bold transition-all duration-150 flex-shrink-0";
+            if (isWrong) cls += " bg-red-500/15 text-red-400 ring-1 ring-red-500/30";
+            else if (isSelected || isWinner) {
+              cls += " bg-brand-primary text-white shadow-sm shadow-brand-primary/40";
+              if (isWinner && !isSelected) cls += " ring-2 ring-brand-primary/40";
+            }
+            cls += isLocked ? " cursor-not-allowed opacity-70" : " cursor-pointer active:scale-90";
+
+            return (
+              <button
+                key={option}
+                onClick={() => !isLocked && onSelect(match.id, option, latestOdd?.id ?? null)}
+                disabled={isLocked}
+                className={cls}
+                style={!isWrong && !(isSelected || isWinner) ? { background: "var(--bg-card)", color: "var(--text-secondary)" } : {}}
+              >
+                {isFavorite && !isLocked && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-brand-secondary rounded-full" />
+                )}
+                <span className="leading-none">{BTN_LABELS[option]}</span>
+                <span
+                  className={`text-[9px] leading-none mt-0.5 ${isSelected && !isWrong ? "text-white/70" : ""}`}
+                  style={!(isSelected && !isWrong) ? { color: "var(--text-muted)" } : {}}
+                >
+                  {oddValues[option] ? oddValues[option]!.toFixed(2) : "—"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      {!isLast && <div className="h-px ml-9" style={{ background: "var(--border-base)" }} />}
+    </>
   );
 }
 
-function DayGroup({ date, matches, pending, onSelect }: {
+// ─── Day section with sticky header ──────────────────────────────────────────
+
+function DaySection({
+  date,
+  matches,
+  pending,
+  onSelect,
+}: {
   date: string;
   matches: Match[];
   pending: Record<string, { prediction: "CASA" | "EMPATE" | "FORA"; oddId: string | null }>;
   onSelect: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => void;
 }) {
-  const label = format(new Date(date + "T12:00:00"), "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const dayLabel = format(new Date(date + "T12:00:00"), "EEE, dd 'de' MMM", { locale: ptBR });
+  const pickedCount = matches.filter((m) => pending[m.id] || m.predictions[0]).length;
+  const total = matches.length;
+  const allDone = pickedCount === total;
+
   return (
     <div>
-      <h2 className="text-xs font-semibold uppercase tracking-widest mb-3 px-1 capitalize" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </h2>
-      <div className="space-y-3">
-        {matches.map((match) => (
-          <MatchCard
+      {/* Sticky day header */}
+      <div
+        className="sticky top-14 z-30 flex items-center justify-between px-4 py-1.5"
+        style={{ background: "var(--bg-base)", borderBottom: "1px solid var(--border-base)" }}
+      >
+        <span className="text-[11px] font-bold uppercase tracking-widest capitalize" style={{ color: "var(--text-muted)" }}>
+          {dayLabel}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {/* Dot indicators */}
+          <div className="flex gap-0.5">
+            {matches.map((m) => {
+              const picked = pending[m.id] || m.predictions[0];
+              return (
+                <span
+                  key={m.id}
+                  className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
+                  style={{ background: picked ? (allDone ? "#10B981" : "#F59E0B") : "var(--border-base)" }}
+                />
+              );
+            })}
+          </div>
+          <span className="text-[10px] font-semibold tabular-nums" style={{ color: allDone ? "#10B981" : "var(--text-muted)" }}>
+            {pickedCount}/{total}
+          </span>
+        </div>
+      </div>
+
+      {/* Match rows */}
+      <div className="px-4 py-1">
+        {matches.map((match, idx) => (
+          <MatchRow
             key={match.id}
             match={match}
             selectedPrediction={pending[match.id]?.prediction}
             onSelect={onSelect}
+            isLast={idx === matches.length - 1}
           />
         ))}
       </div>
     </div>
   );
 }
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function Skeleton() {
+  return (
+    <div className="space-y-2 animate-pulse">
+      {[5, 4, 3].map((count, ci) => (
+        <div key={ci}>
+          {/* sticky header skeleton */}
+          <div className="flex items-center justify-between px-4 py-1.5 mb-1" style={{ borderBottom: "1px solid var(--border-base)" }}>
+            <div className="h-2.5 w-32 rounded" style={{ background: "var(--border-base)" }} />
+            <div className="h-2.5 w-10 rounded" style={{ background: "var(--border-base)" }} />
+          </div>
+          <div className="px-4 py-1">
+            {Array.from({ length: count }).map((_, i) => (
+              <div key={i}>
+                <div className="flex items-center gap-2 py-2.5 border-l-2 border-transparent pl-3">
+                  <div className="w-5 h-3 rounded" style={{ background: "var(--border-base)" }} />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 w-3/4 rounded" style={{ background: "var(--border-base)" }} />
+                    <div className="h-2 w-1/5 rounded" style={{ background: "var(--border-base)" }} />
+                  </div>
+                  <div className="flex gap-1">
+                    {[0,1,2].map(j => <div key={j} className="w-10 h-10 rounded-lg" style={{ background: "var(--border-base)" }} />)}
+                  </div>
+                </div>
+                {i < count - 1 && <div className="h-px ml-9" style={{ background: "var(--border-base)" }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function HomeClient() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -192,10 +258,9 @@ export default function HomeClient() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Filters
   const [statusFilter, setStatusFilter] = useState<"todos" | "agendados">("agendados");
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
-  const [roundFilter, setRoundFilter] = useState<string | null>(null); // "{phase}-{round}"
+  const [roundFilter, setRoundFilter] = useState<string | null>(null);
   const [countrySearch, setCountrySearch] = useState("");
   const [dateFilter, setDateFilter] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -261,12 +326,8 @@ export default function HomeClient() {
 
   const PHASE_ORDER = ["GRUPOS", "PLAYOFFS", "OITAVAS", "QUARTAS", "SEMI", "FINAL"];
   const PHASE_LABELS: Record<string, string> = {
-    GRUPOS: "Rodada",
-    PLAYOFFS: "16 avos",
-    OITAVAS: "Oitavas",
-    QUARTAS: "Quartas",
-    SEMI: "Semifinal",
-    FINAL: "Final",
+    GRUPOS: "Rodada", PLAYOFFS: "16 avos", OITAVAS: "Oitavas",
+    QUARTAS: "Quartas", SEMI: "Semifinal", FINAL: "Final",
   };
 
   const availableRounds = useMemo(() => {
@@ -274,18 +335,14 @@ export default function HomeClient() {
     matches.forEach((m) => {
       const key = `${m.phase}-${m.round}`;
       if (!map.has(key)) {
-        const label = m.phase === "GRUPOS"
-          ? `Rodada ${m.round}`
-          : PHASE_LABELS[m.phase] ?? m.phase;
+        const label = m.phase === "GRUPOS" ? `Rodada ${m.round}` : PHASE_LABELS[m.phase] ?? m.phase;
         map.set(key, { phase: m.phase, round: m.round, label });
       }
     });
-    return Array.from(map.entries())
-      .sort(([, a], [, b]) => {
-        const pa = PHASE_ORDER.indexOf(a.phase);
-        const pb = PHASE_ORDER.indexOf(b.phase);
-        return pa !== pb ? pa - pb : a.round - b.round;
-      });
+    return Array.from(map.entries()).sort(([, a], [, b]) => {
+      const pa = PHASE_ORDER.indexOf(a.phase), pb = PHASE_ORDER.indexOf(b.phase);
+      return pa !== pb ? pa - pb : a.round - b.round;
+    });
   }, [matches]);
 
   const availableDates = useMemo(() => {
@@ -356,6 +413,7 @@ export default function HomeClient() {
 
   return (
     <>
+      {/* Champion picker and tabs have their own px-4 via page layout */}
       {allTeams.length > 0 && <ChampionPicker teams={allTeams} />}
 
       {/* Status tabs */}
@@ -367,22 +425,23 @@ export default function HomeClient() {
             className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
               statusFilter === f ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20" : ""
             }`}
-            style={statusFilter !== f ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
+            style={statusFilter !== f ? { background: "var(--bg-card)", color: "var(--text-secondary)" } : {}}
           >
             {f === "agendados" ? "Próximos" : "Todos"}
           </button>
         ))}
         <button
           onClick={() => setShowFilters((v) => !v)}
-          className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer relative
-            ${showFilters || hasActiveFilters ? "bg-brand-primary text-white" : ""}`}
-          style={!(showFilters || hasActiveFilters) ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
+          className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer relative ${
+            showFilters || hasActiveFilters ? "bg-brand-primary text-white" : ""
+          }`}
+          style={!(showFilters || hasActiveFilters) ? { background: "var(--bg-card)", color: "var(--text-secondary)" } : {}}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 12h12M10 20h4" />
           </svg>
           {hasActiveFilters && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-secondary rounded-full"></span>
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-secondary rounded-full" />
           )}
         </button>
       </div>
@@ -390,7 +449,6 @@ export default function HomeClient() {
       {/* Filter panel */}
       {showFilters && (
         <div className="rounded-2xl p-4 mb-4 space-y-4 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
-          {/* Country search */}
           <div>
             <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>País</label>
             <div className="relative">
@@ -415,7 +473,6 @@ export default function HomeClient() {
             </div>
           </div>
 
-          {/* Group filter */}
           <div>
             <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Grupo</label>
             <div className="flex flex-wrap gap-1.5">
@@ -434,7 +491,6 @@ export default function HomeClient() {
             </div>
           </div>
 
-          {/* Round filter */}
           {availableRounds.length > 0 && (
             <div>
               <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Rodada / Fase</label>
@@ -455,7 +511,6 @@ export default function HomeClient() {
             </div>
           )}
 
-          {/* Date filter */}
           <div>
             <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Data</label>
             <div className="flex flex-wrap gap-1.5">
@@ -477,7 +532,6 @@ export default function HomeClient() {
             </div>
           </div>
 
-          {/* Auto-fill button */}
           <div>
             <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Palpite automático</label>
             <button
@@ -512,7 +566,7 @@ export default function HomeClient() {
       )}
 
       {message && (
-        <div className={`mb-4 p-3 rounded-xl text-sm font-medium text-center transition-all ${
+        <div className={`mb-3 p-3 rounded-xl text-sm font-medium text-center ${
           message.type === "success"
             ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
             : "bg-red-500/15 border border-red-500/30 text-red-400"
@@ -521,48 +575,39 @@ export default function HomeClient() {
         </div>
       )}
 
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl p-4 animate-pulse border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
-              <div className="h-4 rounded w-1/3 mb-3" style={{ background: "var(--bg-card2)" }}></div>
-              <div className="flex justify-between mb-4">
-                <div className="h-5 rounded w-1/3" style={{ background: "var(--bg-card2)" }}></div>
-                <div className="h-5 rounded w-1/4" style={{ background: "var(--bg-card2)" }}></div>
-                <div className="h-5 rounded w-1/3" style={{ background: "var(--bg-card2)" }}></div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[1,2,3].map(j => <div key={j} className="h-10 rounded-xl" style={{ background: "var(--bg-card2)" }}></div>)}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : sortedDays.length === 0 ? (
-        <div className="rounded-2xl p-8 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
-          <p className="text-4xl mb-3">⚽</p>
-          <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Nenhum jogo encontrado</p>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            {hasActiveFilters ? "Tente ajustar os filtros." : statusFilter === "agendados" ? "Não há jogos agendados no momento." : "O calendário ainda está sendo carregado."}
-          </p>
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="mt-3 text-xs text-brand-primary cursor-pointer">
-              Limpar filtros
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {sortedDays.map((day) => (
-            <DayGroup
+      {/* List — negative mx to break out of page padding */}
+      <div className="-mx-4">
+        {loading ? (
+          <Skeleton />
+        ) : sortedDays.length === 0 ? (
+          <div className="mx-4 rounded-2xl p-8 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+            <p className="text-4xl mb-3">⚽</p>
+            <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Nenhum jogo encontrado</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {hasActiveFilters
+                ? "Tente ajustar os filtros."
+                : statusFilter === "agendados"
+                ? "Não há jogos agendados no momento."
+                : "O calendário ainda está sendo carregado."}
+            </p>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="mt-3 text-xs text-brand-primary cursor-pointer">
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        ) : (
+          sortedDays.map((day) => (
+            <DaySection
               key={day}
               date={day}
               matches={matchesByDay[day]}
               pending={pending}
               onSelect={handleSelect}
             />
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       {pendingCount > 0 && (
         <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
@@ -570,13 +615,13 @@ export default function HomeClient() {
             <button
               onClick={handleSaveAll}
               disabled={saving}
-              className="bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-brand-primary/90 transition-all duration-200 shadow-lg shadow-brand-primary/30 active:scale-95 w-full flex items-center justify-center gap-2 shadow-2xl shadow-brand-primary/40"
+              className="bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-brand-primary/90 transition-all duration-200 shadow-2xl shadow-brand-primary/40 active:scale-95 w-full flex items-center justify-center gap-2"
             >
               {saving ? (
                 <>
                   <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   Salvando...
                 </>
