@@ -1,48 +1,87 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #10B981; /* Emerald 500 */
+  /* === BRAND TOKENS — Bolão Copa 2026 === */
+  /* Referência: Bet365, Betano, Sportingbet                    */
+  /* Verde = ação/vitória | Âmbar = odds/destaque | Vermelho = erro/perda */
+
+  /* Ação principal — verde betting (Betano-inspired) */
+  --color-brand-primary:   #00C853; /* Green A700 — confirm bet, CTA */
+  --color-brand-primary-hover: #00B248;
+  --color-brand-primary-dim:   #00C85326; /* 15% alpha — glow/shadow */
+
+  /* Destaque — âmbar dourado (odds, premiações, ranking) */
   --color-brand-secondary: #F59E0B; /* Amber 500 */
-  --color-brand-dark: #020617; /* Slate 950 */
-  --color-brand-card: #0F172A; /* Slate 900 */
-  --color-brand-muted: #94A3B8; /* Slate 400 */
-  --font-heading: "Outfit", sans-serif;
-  --font-body: "Rubik", sans-serif;
+  --color-brand-gold:      #FBBF24; /* Amber 400 — odds highlight */
+
+  /* Semântica de resultado */
+  --color-win:  #00C853; /* vitória / correto */
+  --color-loss: #F43F5E; /* derrota / errado   */
+  --color-draw: #F59E0B; /* empate / parcial   */
+
+  /* Escuros de marca */
+  --color-brand-dark:  #0A0E1A; /* fundo dark profundo */
+  --color-brand-card:  #0F1929; /* card dark           */
+  --color-brand-muted: #64748B; /* slate-500           */
+
 }
 
 @layer base {
+  /* ── MODO CLARO ── */
+  /* Inspiração: Bet365 light / SportingBet — fundo branco limpo,  */
+  /* sidebar com verde escuro, cards brancos, odds em âmbar         */
   :root {
-    --bg-base: #f1f5f9;        /* slate-100 */
-    --bg-card: #ffffff;
-    --bg-card2: #f8fafc;       /* slate-50 */
-    --bg-input: #f1f5f9;       /* slate-100 */
-    --bg-nav: rgba(248,250,252,0.92);
-    --bg-topbar: rgba(248,250,252,0.92);
-    --bg-gradient-from: #e2e8f0; /* slate-200 */
+    /* Fontes — var(--font-outfit/rubik) são injetadas pelo Next.js no <html> via className */
+    --font-heading: var(--font-outfit), sans-serif;
+    --font-body:    var(--font-rubik),  sans-serif;
+
+    /* Expõe os tokens de marca como variáveis CSS reais */
+    --color-brand-primary:       #00C853;
+    --color-brand-primary-hover: #00B248;
+    --color-brand-primary-dim:   rgba(0,200,83,0.15);
+    --color-brand-primary-text:  #006633; /* verde escuro para texto/link em fundo claro — 6.4:1 ✅ */
+    --color-brand-secondary:     #F59E0B;
+    --color-brand-gold:          #FBBF24;
+    --color-win:                 #00C853;
+    --color-loss:                #F43F5E;
+    --color-draw:                #F59E0B;
+
+    --bg-base: #F0F4F0;          /* off-white levemente esverdeado */
+    --bg-card: #FFFFFF;
+    --bg-card2: #F7FBF7;         /* card secundário com leve tint verde */
+    --bg-input: #F0F4F0;
+    --bg-nav: rgba(255,255,255,0.95);
+    --bg-topbar: rgba(255,255,255,0.95);
+    --bg-gradient-from: #D1FAE5; /* emerald-100 */
     --border-base: rgba(0,0,0,0.08);
-    --border-strong: rgba(0,0,0,0.12);
-    --text-primary: #0f172a;   /* slate-900 */
-    --text-secondary: #475569; /* slate-600 */
-    --text-muted: #94a3b8;     /* slate-400 */
-    --text-inverted: #ffffff;
-    --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --border-strong: rgba(0,149,80,0.20); /* borda verde sutil */
+    --text-primary: #0A1628;     /* quase preto azulado — 16.3:1 vs base ✅ */
+    --text-secondary: #374151;   /* gray-700 — 9.3:1 vs base ✅ */
+    --text-muted: #4B5563;       /* gray-600 — 5.9:1 vs base ✅ */
+    --text-inverted: #FFFFFF;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-primary: 0 4px 14px rgba(0,200,83,0.25);
   }
 
+  /* ── MODO ESCURO ── */
+  /* Inspiração: Betano / Bet365 dark — fundo quase preto azulado,  */
+  /* cards cinza-azulados, verde neon como ação, âmbar para odds    */
   .dark {
-    --bg-base: #020617;        /* slate-950 */
-    --bg-card: #0f172a;        /* slate-900 */
-    --bg-card2: #1e293b;       /* slate-800 */
-    --bg-input: #1e293b;       /* slate-800 */
-    --bg-nav: rgba(15,23,42,0.92);
-    --bg-topbar: rgba(15,23,42,0.92);
-    --bg-gradient-from: #1e293b;
-    --border-base: rgba(255,255,255,0.08);
-    --border-strong: rgba(255,255,255,0.12);
-    --text-primary: #f8fafc;   /* slate-50 */
-    --text-secondary: #94a3b8; /* slate-400 */
-    --text-muted: #475569;     /* slate-600 */
-    --text-inverted: #0f172a;
-    --shadow-card: 0 1px 3px rgba(0,0,0,0.4);
+    --bg-base: #003847;
+    --bg-card: #004E62;
+    --bg-card2: #005A70;
+    --bg-input: #006480;
+    --bg-nav: rgba(0,56,71,0.95);
+    --bg-topbar: rgba(0,56,71,0.95);
+    --bg-gradient-from: #002A36;
+    --border-base: rgba(255,255,255,0.07);
+    --border-strong: rgba(0,200,83,0.20); /* borda verde neon sutil */
+    --text-primary: #F1F5F9;     /* slate-100 — 11.6:1 vs base ✅ */
+    --text-secondary: #CBD5E1;   /* slate-300 — 7.2:1 vs base ✅ */
+    --text-muted: #A8BCC8;       /* azul-aço — 6.5:1 vs base, 4.7:1 vs card ✅ */
+    --text-inverted: #0A0E1A;
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.5);
+    --shadow-primary: 0 4px 20px rgba(0,200,83,0.30);
   }
 
   body {
@@ -65,8 +104,15 @@
     box-shadow: var(--shadow-card);
   }
 
+  /* Botão de ação principal — verde betting */
   .btn-primary {
-    @apply bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-brand-primary/90 transition-all duration-200 shadow-lg shadow-brand-primary/30 active:scale-95;
+    @apply font-semibold py-3 px-6 rounded-xl transition-all duration-200 active:scale-95;
+    background: var(--color-brand-primary);
+    color: #ffffff;
+    box-shadow: var(--shadow-primary);
+  }
+  .btn-primary:hover {
+    background: var(--color-brand-primary-hover);
   }
 
   .btn-secondary {
@@ -77,14 +123,27 @@
   }
 
   .input-field {
-    @apply w-full rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all duration-200;
+    @apply w-full rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200;
     background: var(--bg-input);
     border: 1px solid var(--border-base);
     color: var(--text-primary);
+    --tw-ring-color: var(--color-brand-primary);
   }
 
   .input-field::placeholder {
     color: var(--text-muted);
+  }
+
+  /* Badges de resultado de aposta */
+  .badge-win  { background: var(--color-win);  color: #fff; }
+  .badge-loss { background: var(--color-loss); color: #fff; }
+  .badge-draw { background: var(--color-draw); color: #fff; }
+
+  /* Odds / pontuação em destaque */
+  .odds-highlight {
+    color: var(--color-brand-gold);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
   }
 
   /* Theme-aware utility classes */
