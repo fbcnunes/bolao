@@ -21,6 +21,7 @@ enum UserStatus {
 
 enum MatchPhase {
   GRUPOS
+  PLAYOFFS
   OITAVAS
   QUARTAS
   SEMI
@@ -46,6 +47,7 @@ model User {
   passwordHash  String
   role          Role         @default(PARTICIPANTE)
   status        UserStatus   @default(PENDENTE)
+  championPick  String?
   createdAt     DateTime     @default(now())
   predictions   Prediction[]
   scores        Score[]

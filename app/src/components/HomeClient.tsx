@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import ChampionPicker from "@/components/ChampionPicker";
 
 type Odd = {
   id: string;
@@ -26,12 +27,13 @@ type Match = {
   status: "AGENDADO" | "AO_VIVO" | "ENCERRADO";
   result?: "CASA" | "EMPATE" | "FORA" | null;
   phase: string;
+  round: number;
   group: string;
   odds: Odd[];
   predictions: Prediction[];
 };
 
-const RESULT_LABELS = { CASA: "Casa", EMPATE: "Empate", FORA: "Fora" };
+const RESULT_LABELS = { CASA: "1", EMPATE: "Empate", FORA: "2" };
 const RESULT_OPTIONS: ("CASA" | "EMPATE" | "FORA")[] = ["CASA", "EMPATE", "FORA"];
 const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
 
@@ -163,6 +165,7 @@ export default function HomeClient() {
   // Filters
   const [statusFilter, setStatusFilter] = useState<"todos" | "agendados">("agendados");
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const [roundFilter, setRoundFilter] = useState<string | null>(null); // "{phase}-{round}"
   const [countrySearch, setCountrySearch] = useState("");
   const [dateFilter, setDateFilter] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -219,11 +222,42 @@ export default function HomeClient() {
 
   const clearFilters = () => {
     setGroupFilter(null);
+    setRoundFilter(null);
     setCountrySearch("");
     setDateFilter(null);
   };
 
-  const hasActiveFilters = groupFilter !== null || countrySearch.trim() !== "" || dateFilter !== null;
+  const hasActiveFilters = groupFilter !== null || roundFilter !== null || countrySearch.trim() !== "" || dateFilter !== null;
+
+  const PHASE_ORDER = ["GRUPOS", "PLAYOFFS", "OITAVAS", "QUARTAS", "SEMI", "FINAL"];
+  const PHASE_LABELS: Record<string, string> = {
+    GRUPOS: "Rodada",
+    PLAYOFFS: "16 avos",
+    OITAVAS: "Oitavas",
+    QUARTAS: "Quartas",
+    SEMI: "Semifinal",
+    FINAL: "Final",
+  };
+
+  // Available rounds as {phase}-{round} keys, sorted by phase order then round number
+  const availableRounds = useMemo(() => {
+    const map = new Map<string, { phase: string; round: number; label: string }>();
+    matches.forEach((m) => {
+      const key = `${m.phase}-${m.round}`;
+      if (!map.has(key)) {
+        const label = m.phase === "GRUPOS"
+          ? `Rodada ${m.round}`
+          : PHASE_LABELS[m.phase] ?? m.phase;
+        map.set(key, { phase: m.phase, round: m.round, label });
+      }
+    });
+    return Array.from(map.entries())
+      .sort(([, a], [, b]) => {
+        const pa = PHASE_ORDER.indexOf(a.phase);
+        const pb = PHASE_ORDER.indexOf(b.phase);
+        return pa !== pb ? pa - pb : a.round - b.round;
+      });
+  }, [matches]);
 
   // Available dates (BRT)
   const availableDates = useMemo(() => {
@@ -241,6 +275,7 @@ export default function HomeClient() {
     return matches.filter((m) => {
       if (statusFilter === "agendados" && m.status !== "AGENDADO") return false;
       if (groupFilter && m.group !== groupFilter) return false;
+      if (roundFilter !== null && `${m.phase}-${m.round}` !== roundFilter) return false;
       if (q && !m.homeTeam.toLowerCase().includes(q) && !m.awayTeam.toLowerCase().includes(q)) return false;
       if (dateFilter) {
         const local = format(new Date(new Date(m.dateTime).getTime() - 3 * 60 * 60 * 1000), "yyyy-MM-dd");
@@ -248,7 +283,7 @@ export default function HomeClient() {
       }
       return true;
     });
-  }, [matches, statusFilter, groupFilter, countrySearch, dateFilter]);
+  }, [matches, statusFilter, groupFilter, roundFilter, countrySearch, dateFilter]);
 
   const autoFillCount = useMemo(() => {
     const now = new Date();
@@ -287,8 +322,16 @@ export default function HomeClient() {
 
   const pendingCount = Object.keys(pending).length;
 
+  const allTeams = useMemo(() => {
+    const set = new Set<string>();
+    matches.forEach((m) => { set.add(m.homeTeam); set.add(m.awayTeam); });
+    return Array.from(set).sort();
+  }, [matches]);
+
   return (
     <>
+      {allTeams.length > 0 && <ChampionPicker teams={allTeams} />}
+
       {/* Status tabs */}
       <div className="flex gap-2 mb-3">
         {(["agendados", "todos"] as const).map((f) => (
@@ -358,6 +401,25 @@ export default function HomeClient() {
               ))}
             </div>
           </div>
+
+          {/* Round filter */}
+          {availableRounds.length > 0 && (
+            <div>
+              <label className="text-xs text-slate-500 uppercase tracking-wider mb-1.5 block">Rodada / Fase</label>
+              <div className="flex flex-wrap gap-1.5">
+                {availableRounds.map(([key, { label }]) => (
+                  <button
+                    key={key}
+                    onClick={() => setRoundFilter(roundFilter === key ? null : key)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer
+                      ${roundFilter === key ? "bg-brand-primary text-white" : "bg-slate-800 text-slate-400 hover:text-white"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Date filter */}
           <div>

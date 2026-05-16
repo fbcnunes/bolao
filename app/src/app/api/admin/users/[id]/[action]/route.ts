@@ -18,7 +18,7 @@ export async function POST(
   try {
     let newStatus: "ATIVO" | "RECUSADO" | "PENDENTE";
 
-    if (action === "approve") {
+    if (action === "approve" || action === "reactivate") {
       newStatus = "ATIVO";
     } else if (action === "reject") {
       newStatus = "RECUSADO";
@@ -32,8 +32,9 @@ export async function POST(
       select: { id: true, name: true, status: true },
     });
 
+    const actionLabel = newStatus === "ATIVO" ? (action === "reactivate" ? "reativado" : "aprovado") : "recusado";
     return NextResponse.json({
-      message: `Usuário ${updatedUser.name} foi ${newStatus === "ATIVO" ? "aprovado" : "recusado"}.`,
+      message: `Usuário ${updatedUser.name} foi ${actionLabel}.`,
       user: updatedUser,
     });
   } catch (error) {

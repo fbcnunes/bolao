@@ -54,6 +54,7 @@ export default function AdminPage() {
   const [matchFilter, setMatchFilter] = useState<"AGENDADO" | "AO_VIVO" | "ENCERRADO" | "TODOS">("AGENDADO");
   const [editing, setEditing] = useState<{ matchId: string; status: Match["status"]; result: Match["result"] } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [calculatingBonus, setCalculatingBonus] = useState(false);
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -95,7 +96,7 @@ export default function AdminPage() {
     if (tab === "jogos" && matches.length === 0) fetchMatches();
   }, [tab]);
 
-  const handleUserAction = async (userId: string, action: "approve" | "reject") => {
+  const handleUserAction = async (userId: string, action: "approve" | "reject" | "reactivate") => {
     setActionLoading(userId);
     try {
       const res = await fetch(`/api/admin/users/${userId}/${action}`, { method: "POST" });
@@ -110,6 +111,23 @@ export default function AdminPage() {
       showMessage("error", "Erro ao realizar ação.");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleCalculateBonus = async () => {
+    setCalculatingBonus(true);
+    try {
+      const res = await fetch("/api/admin/bonuses", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        showMessage("success", `Bônus recalculados! ${data.bonusAwarded} bônus atribuído(s).`);
+      } else {
+        showMessage("error", data.message || "Erro ao calcular bônus.");
+      }
+    } catch {
+      showMessage("error", "Erro ao calcular bônus.");
+    } finally {
+      setCalculatingBonus(false);
     }
   };
 
@@ -318,6 +336,17 @@ export default function AdminPage() {
                           </button>
                         </div>
                       )}
+                      {user.status === "RECUSADO" && (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => handleUserAction(user.id, "reactivate")}
+                            disabled={isProcessing}
+                            className="w-full py-2 text-xs font-semibold rounded-xl bg-brand-primary/15 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                          >
+                            {isProcessing ? "..." : "↺ Reativar"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -329,6 +358,17 @@ export default function AdminPage() {
         {/* MATCHES TAB */}
         {tab === "jogos" && (
           <>
+            <button
+              onClick={handleCalculateBonus}
+              disabled={calculatingBonus}
+              className="w-full mb-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/30 hover:bg-brand-secondary/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              {calculatingBonus ? "Calculando..." : "Recalcular Bônus do Dia"}
+            </button>
+
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
               {(["AGENDADO", "AO_VIVO", "ENCERRADO", "TODOS"] as const).map((f) => (
                 <button

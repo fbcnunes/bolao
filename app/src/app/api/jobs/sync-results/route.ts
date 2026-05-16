@@ -52,11 +52,15 @@ export async function GET(req: Request) {
         data: { status: "ENCERRADO", result },
       });
 
+      const PHASE_POINTS: Record<string, number> = {
+        GRUPOS: 10, PLAYOFFS: 15, OITAVAS: 20, QUARTAS: 30, SEMI: 40, FINAL: 50,
+      };
+
       for (const prediction of dbMatch.predictions) {
         const isCorrect = prediction.prediction === result;
 
         if (isCorrect) {
-          const pointsEarned = 10;
+          const pointsEarned = PHASE_POINTS[dbMatch.phase] ?? 10;
 
           await prisma.prediction.update({
             where: { id: prediction.id },
