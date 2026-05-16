@@ -23,9 +23,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${outfit.variable} ${rubik.variable} dark`}>
-      <body className="antialiased min-h-screen bg-brand-dark text-white selection:bg-brand-primary/30">
-        <div className="fixed inset-0 z-[-1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-brand-dark to-brand-dark"></div>
+    <html lang="pt-BR" className={`${outfit.variable} ${rubik.variable}`} suppressHydrationWarning>
+      <body className="antialiased min-h-screen selection:bg-brand-primary/30" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
+        <div className="fixed inset-0 z-[-1]" style={{ background: "var(--bg-base)" }}></div>
         {children}
       </body>
     </html>

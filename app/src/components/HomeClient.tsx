@@ -58,40 +58,54 @@ function MatchCard({
     FORA: latestOdd?.oddAway,
   };
 
-  const statusColors: Record<Match["status"], string> = {
-    AGENDADO: "bg-slate-700/50 text-slate-300",
-    AO_VIVO: "bg-red-500/20 text-red-400 animate-pulse",
-    ENCERRADO: "bg-slate-800 text-slate-500",
-  };
   const statusLabels: Record<Match["status"], string> = {
     AGENDADO: format(new Date(match.dateTime), "HH:mm", { locale: ptBR }),
     AO_VIVO: "● Ao Vivo",
     ENCERRADO: "Encerrado",
   };
 
+  const cardBorder = isCorrect === true
+    ? "border-brand-primary/50"
+    : isCorrect === false
+    ? "border-red-500/30"
+    : "";
+
   return (
-    <div className={`bg-slate-900/80 border border-white/10 shadow-xl backdrop-blur-md rounded-2xl p-4 transition-all duration-300 ${isCorrect === true ? "border-brand-primary/50" : isCorrect === false ? "border-red-500/30" : ""}`}>
+    <div
+      className={`backdrop-blur-md rounded-2xl p-4 transition-all duration-300 border ${cardBorder || ""}`}
+      style={{ background: "var(--bg-card)", borderColor: cardBorder ? undefined : "var(--border-base)" }}
+    >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
           Grupo {match.group}
         </span>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusColors[match.status]}`}>
-          {statusLabels[match.status]}
-        </span>
+        {match.status === "AGENDADO" ? (
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>
+            {statusLabels[match.status]}
+          </span>
+        ) : match.status === "AO_VIVO" ? (
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-500/20 text-red-400 animate-pulse">
+            {statusLabels[match.status]}
+          </span>
+        ) : (
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--bg-card2)", color: "var(--text-muted)" }}>
+            {statusLabels[match.status]}
+          </span>
+        )}
       </div>
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex-1 text-center">
-          <p className="font-bold text-white text-base leading-tight">{match.homeTeam}</p>
+          <p className="font-bold text-base leading-tight" style={{ color: "var(--text-primary)" }}>{match.homeTeam}</p>
           {match.result === "CASA" && <span className="text-xs text-brand-primary font-semibold">Vencedor</span>}
         </div>
         <div className="flex flex-col items-center gap-0.5">
-          <span className="text-slate-500 text-xs font-bold">VS</span>
+          <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>VS</span>
           {match.status === "ENCERRADO" && match.result === "EMPATE" && (
-            <span className="text-[10px] text-slate-600">Empate</span>
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>Empate</span>
           )}
         </div>
         <div className="flex-1 text-center">
-          <p className="font-bold text-white text-base leading-tight">{match.awayTeam}</p>
+          <p className="font-bold text-base leading-tight" style={{ color: "var(--text-primary)" }}>{match.awayTeam}</p>
           {match.result === "FORA" && <span className="text-xs text-brand-primary font-semibold">Vencedor</span>}
         </div>
       </div>
@@ -102,23 +116,39 @@ function MatchCard({
           const isWinner = match.status === "ENCERRADO" && match.result === option;
           const isWrong = isLocked && isSelected && match.result && match.result !== option;
           const isFavorite = latestOdd?.favorite === option;
+
+          let btnClass = "relative flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-semibold transition-all duration-200";
+          let btnStyle: React.CSSProperties = {};
+
+          if (isWrong) {
+            btnClass += " bg-red-500/20 text-red-400 ring-1 ring-red-500/30";
+          } else if (isSelected || isWinner) {
+            btnClass += " bg-brand-primary text-white shadow-lg shadow-brand-primary/30 scale-105";
+            if (isWinner) btnClass += " ring-2 ring-brand-primary/50";
+          } else {
+            btnStyle = { background: "var(--bg-card2)", color: "var(--text-secondary)" };
+          }
+
+          if (isLocked) {
+            btnClass += " cursor-not-allowed opacity-80";
+          } else {
+            btnClass += " cursor-pointer active:scale-95";
+            if (!isSelected && !isWinner && !isWrong) btnClass += " hover:opacity-80";
+          }
+
           return (
             <button
               key={option}
               onClick={() => !isLocked && onSelect(match.id, option, latestOdd?.id ?? null)}
               disabled={isLocked}
-              className={`relative flex flex-col items-center justify-center py-2.5 px-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer
-                ${isSelected && !isWrong ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/30 scale-105" : ""}
-                ${isWinner ? "bg-brand-primary text-white ring-2 ring-brand-primary/50" : ""}
-                ${isWrong ? "bg-red-500/20 text-red-400 ring-1 ring-red-500/30" : ""}
-                ${!isSelected && !isWinner && !isWrong ? "bg-slate-800/60 text-slate-300 hover:bg-slate-700/60" : ""}
-                ${isLocked ? "cursor-not-allowed opacity-80" : "active:scale-95"}`}
+              className={btnClass}
+              style={btnStyle}
             >
               {isFavorite && !isLocked && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-secondary rounded-full"></span>
               )}
               <span>{RESULT_LABELS[option]}</span>
-              <span className={`text-[10px] mt-0.5 ${isSelected && !isWrong ? "text-white/80" : "text-slate-500"}`}>
+              <span className={`text-[10px] mt-0.5 ${isSelected && !isWrong ? "text-white/80" : ""}`} style={!(isSelected && !isWrong) ? { color: "var(--text-muted)" } : {}}>
                 {oddValues[option] ? oddValues[option]?.toFixed(2) : "—"}
               </span>
             </button>
@@ -138,7 +168,7 @@ function DayGroup({ date, matches, pending, onSelect }: {
   const label = format(new Date(date + "T12:00:00"), "EEEE, dd 'de' MMMM", { locale: ptBR });
   return (
     <div>
-      <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 px-1 capitalize">
+      <h2 className="text-xs font-semibold uppercase tracking-widest mb-3 px-1 capitalize" style={{ color: "var(--text-muted)" }}>
         {label}
       </h2>
       <div className="space-y-3">
@@ -239,7 +269,6 @@ export default function HomeClient() {
     FINAL: "Final",
   };
 
-  // Available rounds as {phase}-{round} keys, sorted by phase order then round number
   const availableRounds = useMemo(() => {
     const map = new Map<string, { phase: string; round: number; label: string }>();
     matches.forEach((m) => {
@@ -259,7 +288,6 @@ export default function HomeClient() {
       });
   }, [matches]);
 
-  // Available dates (BRT)
   const availableDates = useMemo(() => {
     const days = new Set<string>();
     matches.forEach((m) => {
@@ -269,7 +297,6 @@ export default function HomeClient() {
     return Array.from(days).sort();
   }, [matches]);
 
-  // Apply all filters
   const filteredMatches = useMemo(() => {
     const q = countrySearch.trim().toLowerCase();
     return matches.filter((m) => {
@@ -307,7 +334,6 @@ export default function HomeClient() {
     });
   };
 
-  // Group by day
   const matchesByDay = useMemo(() => {
     const acc: Record<string, Match[]> = {};
     filteredMatches.forEach((m) => {
@@ -338,8 +364,10 @@ export default function HomeClient() {
           <button
             key={f}
             onClick={() => setStatusFilter(f)}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer
-              ${statusFilter === f ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20" : "bg-slate-800/60 text-slate-400 hover:text-white"}`}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              statusFilter === f ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20" : ""
+            }`}
+            style={statusFilter !== f ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
           >
             {f === "agendados" ? "Próximos" : "Todos"}
           </button>
@@ -347,7 +375,8 @@ export default function HomeClient() {
         <button
           onClick={() => setShowFilters((v) => !v)}
           className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer relative
-            ${showFilters || hasActiveFilters ? "bg-brand-primary text-white" : "bg-slate-800/60 text-slate-400 hover:text-white"}`}
+            ${showFilters || hasActiveFilters ? "bg-brand-primary text-white" : ""}`}
+          style={!(showFilters || hasActiveFilters) ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 12h12M10 20h4" />
@@ -360,12 +389,12 @@ export default function HomeClient() {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 mb-4 space-y-4">
+        <div className="rounded-2xl p-4 mb-4 space-y-4 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
           {/* Country search */}
           <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1.5 block">País</label>
+            <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>País</label>
             <div className="relative">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -373,10 +402,11 @@ export default function HomeClient() {
                 value={countrySearch}
                 onChange={(e) => setCountrySearch(e.target.value)}
                 placeholder="Ex: Brasil, França..."
-                className="w-full bg-slate-800 text-white text-sm rounded-xl pl-9 pr-4 py-2.5 outline-none placeholder:text-slate-600 border border-white/5 focus:border-brand-primary/50"
+                className="w-full text-sm rounded-xl pl-9 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-primary/50 border"
+                style={{ background: "var(--bg-input)", color: "var(--text-primary)", borderColor: "var(--border-base)" }}
               />
               {countrySearch && (
-                <button onClick={() => setCountrySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer">
+                <button onClick={() => setCountrySearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:opacity-70" style={{ color: "var(--text-muted)" }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -387,14 +417,16 @@ export default function HomeClient() {
 
           {/* Group filter */}
           <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1.5 block">Grupo</label>
+            <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Grupo</label>
             <div className="flex flex-wrap gap-1.5">
               {GROUPS.map((g) => (
                 <button
                   key={g}
                   onClick={() => setGroupFilter(groupFilter === g ? null : g)}
-                  className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer
-                    ${groupFilter === g ? "bg-brand-primary text-white" : "bg-slate-800 text-slate-400 hover:text-white"}`}
+                  className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    groupFilter === g ? "bg-brand-primary text-white" : ""
+                  }`}
+                  style={groupFilter !== g ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                 >
                   {g}
                 </button>
@@ -405,14 +437,16 @@ export default function HomeClient() {
           {/* Round filter */}
           {availableRounds.length > 0 && (
             <div>
-              <label className="text-xs text-slate-500 uppercase tracking-wider mb-1.5 block">Rodada / Fase</label>
+              <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Rodada / Fase</label>
               <div className="flex flex-wrap gap-1.5">
                 {availableRounds.map(([key, { label }]) => (
                   <button
                     key={key}
                     onClick={() => setRoundFilter(roundFilter === key ? null : key)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer
-                      ${roundFilter === key ? "bg-brand-primary text-white" : "bg-slate-800 text-slate-400 hover:text-white"}`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      roundFilter === key ? "bg-brand-primary text-white" : ""
+                    }`}
+                    style={roundFilter !== key ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                   >
                     {label}
                   </button>
@@ -423,7 +457,7 @@ export default function HomeClient() {
 
           {/* Date filter */}
           <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1.5 block">Data</label>
+            <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Data</label>
             <div className="flex flex-wrap gap-1.5">
               {availableDates.map((d) => {
                 const label = format(new Date(d + "T12:00:00"), "dd/MM");
@@ -431,8 +465,10 @@ export default function HomeClient() {
                   <button
                     key={d}
                     onClick={() => setDateFilter(dateFilter === d ? null : d)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer
-                      ${dateFilter === d ? "bg-brand-primary text-white" : "bg-slate-800 text-slate-400 hover:text-white"}`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      dateFilter === d ? "bg-brand-primary text-white" : ""
+                    }`}
+                    style={dateFilter !== d ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                   >
                     {label}
                   </button>
@@ -443,14 +479,16 @@ export default function HomeClient() {
 
           {/* Auto-fill button */}
           <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1.5 block">Palpite automático</label>
+            <label className="text-xs uppercase tracking-wider mb-1.5 block" style={{ color: "var(--text-muted)" }}>Palpite automático</label>
             <button
               onClick={handleAutoFill}
               disabled={autoFillCount === 0}
-              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2
-                ${autoFillCount > 0
-                  ? "bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/30 hover:bg-brand-secondary/25 cursor-pointer active:scale-95"
-                  : "bg-slate-800/50 text-slate-600 border border-white/5 cursor-not-allowed"}`}
+              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 border ${
+                autoFillCount > 0
+                  ? "bg-brand-secondary/15 text-brand-secondary border-brand-secondary/30 hover:bg-brand-secondary/25 cursor-pointer active:scale-95"
+                  : "cursor-not-allowed"
+              }`}
+              style={autoFillCount === 0 ? { background: "var(--bg-card2)", color: "var(--text-muted)", borderColor: "var(--border-base)" } : {}}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -464,7 +502,8 @@ export default function HomeClient() {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="w-full py-2 text-xs font-semibold rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+              className="w-full py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer hover:opacity-70"
+              style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}
             >
               Limpar filtros
             </button>
@@ -485,26 +524,24 @@ export default function HomeClient() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 animate-pulse">
-              <div className="h-4 bg-slate-700 rounded w-1/3 mb-3"></div>
+            <div key={i} className="rounded-2xl p-4 animate-pulse border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+              <div className="h-4 rounded w-1/3 mb-3" style={{ background: "var(--bg-card2)" }}></div>
               <div className="flex justify-between mb-4">
-                <div className="h-5 bg-slate-700 rounded w-1/3"></div>
-                <div className="h-5 bg-slate-700 rounded w-1/4"></div>
-                <div className="h-5 bg-slate-700 rounded w-1/3"></div>
+                <div className="h-5 rounded w-1/3" style={{ background: "var(--bg-card2)" }}></div>
+                <div className="h-5 rounded w-1/4" style={{ background: "var(--bg-card2)" }}></div>
+                <div className="h-5 rounded w-1/3" style={{ background: "var(--bg-card2)" }}></div>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="h-10 bg-slate-700 rounded-xl"></div>
-                <div className="h-10 bg-slate-700 rounded-xl"></div>
-                <div className="h-10 bg-slate-700 rounded-xl"></div>
+                {[1,2,3].map(j => <div key={j} className="h-10 rounded-xl" style={{ background: "var(--bg-card2)" }}></div>)}
               </div>
             </div>
           ))}
         </div>
       ) : sortedDays.length === 0 ? (
-        <div className="bg-slate-900/80 border border-white/10 shadow-xl rounded-2xl p-8 text-center">
+        <div className="rounded-2xl p-8 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
           <p className="text-4xl mb-3">⚽</p>
-          <p className="text-white font-semibold mb-1">Nenhum jogo encontrado</p>
-          <p className="text-slate-500 text-sm">
+          <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Nenhum jogo encontrado</p>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {hasActiveFilters ? "Tente ajustar os filtros." : statusFilter === "agendados" ? "Não há jogos agendados no momento." : "O calendário ainda está sendo carregado."}
           </p>
           {hasActiveFilters && (

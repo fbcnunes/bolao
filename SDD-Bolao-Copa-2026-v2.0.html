@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDD - Bolão Copa do Mundo 2026 v2.0</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; }
+
+  .page { max-width: 800px; margin: 0 auto; padding: 40px 50px; }
+
+  /* Header */
+  .doc-header { text-align: center; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 2px solid #1a6b3c; }
+  .doc-header h1 { font-size: 26pt; color: #1a6b3c; font-weight: 700; margin-bottom: 6px; }
+  .doc-header h2 { font-size: 14pt; color: #333; font-weight: 400; margin-bottom: 20px; }
+  .meta-table { margin: 0 auto; border-collapse: collapse; font-size: 10pt; }
+  .meta-table td { padding: 4px 14px; }
+  .meta-table td:first-child { font-weight: 600; color: #555; background: #f5f5f5; border: 1px solid #ddd; }
+  .meta-table td:last-child { border: 1px solid #ddd; }
+
+  /* Top bar */
+  .top-bar { background: #1a6b3c; color: white; font-size: 8pt; padding: 4px 50px; display: flex; justify-content: space-between; margin-bottom: 0; }
+  .confidential { color: #888; font-size: 8pt; text-align: center; margin-top: 40px; padding-top: 8px; border-top: 1px solid #eee; }
+
+  /* Sections */
+  h2.section { font-size: 15pt; color: #1a6b3c; margin: 28px 0 10px; padding-bottom: 5px; border-bottom: 2px solid #1a6b3c; }
+  h3.subsection { font-size: 11pt; color: #1a6b3c; margin: 18px 0 8px; font-weight: 700; }
+  h4.subsubsection { font-size: 10pt; color: #333; margin: 12px 0 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  p { margin-bottom: 8px; line-height: 1.55; }
+  ul { margin: 6px 0 8px 20px; }
+  ul li { margin-bottom: 3px; line-height: 1.5; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 10pt; }
+  thead tr { background: #1a6b3c; color: white; }
+  thead td, thead th { padding: 7px 10px; font-weight: 600; text-align: left; }
+  tbody tr:nth-child(even) { background: #f0f7f3; }
+  tbody tr:nth-child(odd) { background: #fff; }
+  tbody td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+
+  /* Badges */
+  .badge-new { display: inline-block; background: #1a6b3c; color: white; font-size: 7.5pt; padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle; font-weight: 600; }
+  .badge-updated { display: inline-block; background: #c07000; color: white; font-size: 7.5pt; padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle; font-weight: 600; }
+
+  /* Changelog box */
+  .changelog { background: #f0f7f3; border: 1px solid #b2d8c1; border-left: 4px solid #1a6b3c; padding: 12px 16px; margin: 10px 0 18px; border-radius: 3px; }
+  .changelog h4 { color: #1a6b3c; font-size: 10pt; margin-bottom: 8px; }
+  .changelog ul { margin-left: 16px; }
+  .changelog li { font-size: 10pt; margin-bottom: 3px; }
+
+  /* Page break */
+  .page-break { page-break-before: always; margin-top: 40px; }
+
+  @media print {
+    .top-bar { position: fixed; top: 0; left: 0; right: 0; }
+    .confidential { position: fixed; bottom: 0; left: 0; right: 0; }
+    .page { padding-top: 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span>SDD - Bolão Copa do Mundo 2026 &nbsp;|&nbsp; v2.0 &nbsp;|&nbsp; Em Produção</span>
+  <span>Confidencial</span>
+</div>
+
+<div class="page">
+
+  <!-- Capa -->
+  <div class="doc-header">
+    <h1>Software Design Document</h1>
+    <h2>Bolão Copa do Mundo 2026</h2>
+    <table class="meta-table">
+      <tr><td>Versão</td><td>2.0</td></tr>
+      <tr><td>Data</td><td>16/05/2026</td></tr>
+      <tr><td>Status</td><td>Em Produção</td></tr>
+      <tr><td>Plataforma</td><td>Web responsiva (foco mobile)</td></tr>
+      <tr><td>Stack</td><td>Next.js 16 + MySQL + Prisma ORM + football-data.org + The Odds API</td></tr>
+      <tr><td>Deploy</td><td>PM2 + Next.js standalone, porta 3001 (proxy nginx porta 4000)</td></tr>
+    </table>
+  </div>
+
+  <!-- Histórico de versões -->
+  <h2 class="section">Histórico de Versões</h2>
+  <table>
+    <thead><tr><th>Versão</th><th>Data</th><th>Principais Alterações</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>Mai/2026</td><td>Versão inicial — concepção do sistema</td></tr>
+      <tr><td>1.2</td><td>09/05/2026</td><td>Refinamento de regras, modelo de dados detalhado</td></tr>
+      <tr><td>2.0</td><td>16/05/2026</td><td>Sistema em produção. Pontuação progressiva por fase, bônus diário, palpite do campeão, filtros avançados, auto-palpite por odds, reativação de usuário, tela de regras, fase PLAYOFFS adicionada, schema Prisma definitivo</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 1. Visão Geral -->
+  <h2 class="section">1. Visão Geral</h2>
+  <p>Sistema web responsivo com foco mobile para gerenciamento de bolão da Copa do Mundo 2026 entre um grupo fechado de participantes. Cada participante paga R$100 para entrar, confirmado manualmente pelo administrador.</p>
+  <p>Os usuários fazem palpites nos jogos antes do início de cada partida. Pontos são calculados automaticamente com base nos resultados importados via API externa. A pontuação é progressiva por fase do torneio. Uma classificação geral é mantida ao longo do torneio, com bônus diário para o melhor desempenho do dia.</p>
+  <p>Antes do início da competição, cada participante registra seu palpite do campeão, valendo +100 pontos adicionais ao final do torneio.</p>
+
+  <!-- 2. Perfis de Usuário -->
+  <h2 class="section">2. Perfis de Usuário</h2>
+
+  <h3 class="subsection">2.1 Participante</h3>
+  <ul>
+    <li>Pré-cadastro com nome, e-mail e senha</li>
+    <li>Acesso liberado somente após confirmação de pagamento e aprovação do administrador</li>
+    <li>Pode fazer e editar palpites até o início de cada jogo</li>
+    <li>Registra palpite do campeão até o início da fase de grupos</li>
+    <li>Visualiza ranking geral, resultados e regras do bolão</li>
+  </ul>
+
+  <h3 class="subsection">2.2 Administrador</h3>
+  <ul>
+    <li>Também participa do bolão como jogador</li>
+    <li>Aprova ou rejeita pré-cadastros (somente após confirmação de pagamento externo)</li>
+    <li>Pode reativar usuários com status <em>Recusado</em></li>
+    <li>Pode definir resultados manualmente via painel (complementar à importação automática)</li>
+    <li>Aciona o recálculo de bônus diário via botão no painel</li>
+    <li>Não precisa inserir calendário — importado automaticamente via API</li>
+  </ul>
+
+  <!-- 3. Funcionalidades -->
+  <h2 class="section">3. Funcionalidades</h2>
+
+  <h3 class="subsection">3.1 Cadastro e Autenticação</h3>
+  <ul>
+    <li>Formulário de pré-cadastro: nome, e-mail, senha</li>
+    <li>Status inicial: <strong>Pendente</strong></li>
+    <li>Admin confirma pagamento externo → aprova → status: <strong>Ativo</strong></li>
+    <li>Admin rejeita → status: <strong>Recusado</strong></li>
+    <li>Admin pode reativar usuário com status <em>Recusado</em> → status: <strong>Ativo</strong> <span class="badge-new">NOVO</span></li>
+    <li>Login disponível apenas para usuários com status <em>Ativo</em></li>
+    <li>Autenticação via NextAuth com sessão JWT</li>
+  </ul>
+
+  <h3 class="subsection">3.2 Jogos e Calendário</h3>
+  <ul>
+    <li>Calendário importado automaticamente via football-data.org</li>
+    <li>Odds importadas via The Odds API</li>
+    <li>Jogos organizados por grupo e rodada na fase de grupos (3 rodadas por grupo)</li>
+    <li>No mata-mata, fases: Playoffs (16 avos), Oitavas, Quartas, Semifinal, Final</li>
+    <li>Cada jogo exibe: times, grupo, horário em BRT, status e odds (1 / Empate / 2)</li>
+    <li>Status possíveis: <strong>Agendado</strong>, <strong>Ao Vivo</strong>, <strong>Encerrado</strong></li>
+  </ul>
+
+  <h4 class="subsubsection">Filtros disponíveis na tela principal <span class="badge-new">NOVO</span></h4>
+  <table>
+    <thead><tr><th>Filtro</th><th>Opções</th></tr></thead>
+    <tbody>
+      <tr><td>Status</td><td>Próximos (padrão) / Todos</td></tr>
+      <tr><td>País / Time</td><td>Campo de busca livre por nome</td></tr>
+      <tr><td>Grupo</td><td>Botões A a L</td></tr>
+      <tr><td>Rodada / Fase</td><td>Rodada 1, 2, 3 (grupos); 16 avos, Oitavas, Quartas, Semifinal, Final (mata-mata)</td></tr>
+      <tr><td>Data</td><td>Botões com datas disponíveis no calendário</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">3.3 Palpites Individuais</h3>
+  <ul>
+    <li>Opções de resultado exibidas como: <strong>1</strong> (time da casa) / <strong>Empate</strong> / <strong>2</strong> (visitante)</li>
+    <li>Fase de grupos: resultado considerado ao fim dos 90 minutos</li>
+    <li>Fase mata-mata: quem avança independentemente de prorrogação ou pênaltis</li>
+    <li>Palpite pode ser feito ou alterado até o instante de início do jogo</li>
+    <li>Após o início, palpite fica bloqueado e exibe o resultado visual (acerto/erro)</li>
+    <li>Usuários sem palpite ficam com 0 pontos no jogo</li>
+    <li>Odds vigentes são exibidas em cada botão; o favorito recebe marcação visual (ponto colorido)</li>
+  </ul>
+
+  <h3 class="subsection">3.4 Palpites em Lote <span class="badge-updated">ATUALIZADO</span></h3>
+  <p>A tela principal exibe todos os jogos em uma única lista, permitindo palpitar em vários jogos de uma vez. O usuário seleciona as opções individualmente e confirma tudo de uma vez com o botão flutuante de salvar.</p>
+
+  <h4 class="subsubsection">Auto-palpite por odds <span class="badge-new">NOVO</span></h4>
+  <p>Botão disponível no painel de filtros: <em>"Marcar N jogos pelo favorito"</em>. Ao acionar, preenche automaticamente todos os jogos elegíveis (agendados, sem palpite existente e sem palpite pendente) com o resultado favorito das odds. O usuário pode revisar e alterar antes de confirmar.</p>
+
+  <table>
+    <thead><tr><th>Estado do jogo</th><th>Visual</th><th>Ação disponível</th></tr></thead>
+    <tbody>
+      <tr><td>Sem palpite</td><td>Botões neutros; favorito indicado com ponto</td><td>Selecionar e confirmar</td></tr>
+      <tr><td>Palpite pendente</td><td>Opção destacada em verde (não salva)</td><td>Alterar ou confirmar</td></tr>
+      <tr><td>Já confirmado</td><td>Opção destacada; borda colorida no card</td><td>Alterar e regravar até início</td></tr>
+      <tr><td>Jogo iniciado</td><td>Botões bloqueados; resultado exibido</td><td>Nenhuma</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">3.5 Palpite do Campeão <span class="badge-new">NOVO</span></h3>
+  <ul>
+    <li>Cada participante escolhe um time campeão antes do início da competição</li>
+    <li>Prazo: data/hora do primeiro jogo da fase de grupos (determinada automaticamente pelo sistema)</li>
+    <li>Pode ser alterado livremente até o encerramento do prazo</li>
+    <li>Após o prazo, o campo fica bloqueado e exibe o time escolhido</li>
+    <li>Exibido em card fixo no topo da tela principal, com indicação do prazo restante</li>
+    <li>Acerto do campeão vale <strong>+100 pontos</strong> ao resultado final</li>
+  </ul>
+
+  <h3 class="subsection">3.6 Resultados e Pontuação <span class="badge-updated">ATUALIZADO</span></h3>
+  <p>A pontuação é progressiva por fase do torneio:</p>
+  <table>
+    <thead><tr><th>Fase</th><th>Pontos por acerto</th></tr></thead>
+    <tbody>
+      <tr><td>Fase de grupos</td><td>10 pontos</td></tr>
+      <tr><td>16 avos / Playoffs iniciais</td><td>15 pontos</td></tr>
+      <tr><td>Oitavas de final</td><td>20 pontos</td></tr>
+      <tr><td>Quartas de final</td><td>30 pontos</td></tr>
+      <tr><td>Semifinais</td><td>40 pontos</td></tr>
+      <tr><td>Final</td><td>50 pontos</td></tr>
+      <tr><td>Melhor pontuação do dia (bônus)</td><td>+10 pontos</td></tr>
+      <tr><td>Acerto do campeão da Copa</td><td>+100 pontos</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Errou o resultado: 0 pontos</li>
+    <li>Usuários sem palpite: 0 pontos no jogo</li>
+    <li>Resultados importados automaticamente ao fim de cada partida via API</li>
+    <li>Admin pode definir resultados manualmente pelo painel (alternativa/complemento à importação)</li>
+  </ul>
+
+  <h3 class="subsection">3.7 Bônus Diário <span class="badge-new">NOVO</span></h3>
+  <ul>
+    <li>Ao fim de cada dia de jogos, o participante com maior pontuação naquele dia recebe <strong>+10 pontos</strong></li>
+    <li>Em caso de empate na maior pontuação do dia, todos os empatados recebem o bônus</li>
+    <li>Não é atribuído bônus em dias com pontuação máxima igual a zero</li>
+    <li>O bônus é recalculado do zero pelo admin via botão <em>"Recalcular Bônus do Dia"</em> no painel</li>
+    <li>O recálculo substitui bônus anteriores, garantindo consistência após correções de resultado</li>
+  </ul>
+
+  <h3 class="subsection">3.8 Critérios de Desempate</h3>
+  <p>Em caso de igualdade na pontuação total ao final da competição, aplicam-se nesta ordem:</p>
+  <table>
+    <thead><tr><th>#</th><th>Critério</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Maior número de acertos na fase mata-mata</td></tr>
+      <tr><td>2</td><td>Maior número de acertos nas semifinais e na final</td></tr>
+      <tr><td>3</td><td>Acerto do campeão da Copa</td></tr>
+      <tr><td>4</td><td>Maior número total de acertos em toda a Copa</td></tr>
+      <tr><td>5</td><td>Divisão da premiação entre os empatados</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">3.9 Classificação</h3>
+  <ul>
+    <li>Ranking geral com nome, pontos totais e total de acertos</li>
+    <li>Pódio visual para os três primeiros colocados</li>
+    <li>Destaque da posição e pontuação do usuário logado</li>
+    <li>Desempate por número de acertos totais no ranking geral</li>
+  </ul>
+
+  <h3 class="subsection">3.10 Tela de Regras <span class="badge-new">NOVO</span></h3>
+  <p>Tela dedicada, acessível a todos os participantes via navegação inferior, exibindo:</p>
+  <ul>
+    <li>Tabela de pontuação por fase</li>
+    <li>Explicação do bônus diário</li>
+    <li>Palpite do campeão e sua pontuação</li>
+    <li>Critérios de desempate (em ordem de prioridade)</li>
+    <li>Resumo rápido em grade visual</li>
+  </ul>
+
+  <!-- 4. Regras de Negócio -->
+  <h2 class="section">4. Regras de Negócio</h2>
+  <table>
+    <thead><tr><th>#</th><th>Regra</th></tr></thead>
+    <tbody>
+      <tr><td>RN01</td><td>Palpites só são aceitos antes do horário de início do jogo</td></tr>
+      <tr><td>RN02</td><td>Na fase de grupos, o resultado considerado é ao fim dos 90 minutos</td></tr>
+      <tr><td>RN03</td><td>No mata-mata, o critério é quem avança (prorrogação ou pênaltis não alteram o palpite)</td></tr>
+      <tr><td>RN04</td><td>O bônus diário é concedido ao(s) participante(s) com maior pontuação no dia; em caso de empate todos recebem</td></tr>
+      <tr><td>RN05</td><td>Usuários pendentes ou recusados não têm acesso ao sistema</td></tr>
+      <tr><td>RN06</td><td>O administrador também participa do bolão como jogador</td></tr>
+      <tr><td>RN07</td><td>Pagamento (R$100) é controlado fora do sistema — admin aprova manualmente</td></tr>
+      <tr><td>RN08</td><td>A pré-marcação por odds não é obrigatória — o usuário pode escolher livremente</td></tr>
+      <tr><td>RN09</td><td>O timestamp da odd é gravado no momento da confirmação do palpite</td></tr>
+      <tr><td>RN10</td><td>Palpites já confirmados podem ser alterados até o início do jogo</td></tr>
+      <tr><td>RN11</td><td>O palpite do campeão pode ser alterado livremente até o início do primeiro jogo da fase de grupos</td></tr>
+      <tr><td>RN12</td><td>Um usuário recusado pode ser reativado pelo administrador, recuperando o acesso ao sistema</td></tr>
+      <tr><td>RN13</td><td>A pontuação é progressiva por fase: grupos (10pts), playoffs (15pts), oitavas (20pts), quartas (30pts), semis (40pts), final (50pts)</td></tr>
+      <tr><td>RN14</td><td>O bônus diário é recalculado a partir do zero a cada acionamento, substituindo bônus anteriores</td></tr>
+      <tr><td>RN15</td><td>Todos os horários são exibidos e armazenados em referência ao fuso BRT (UTC-3)</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 5. Arquitetura -->
+  <div class="page-break"></div>
+  <h2 class="section">5. Arquitetura</h2>
+  <table>
+    <thead><tr><th>Camada</th><th>Tecnologia</th><th>Justificativa</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend</td><td>Next.js 16 (App Router) + Tailwind CSS</td><td>React server/client components, roteamento integrado, responsivo e mobile-first</td></tr>
+      <tr><td>Backend / API</td><td>Next.js Route Handlers (API Routes)</td><td>Backend no mesmo projeto, reduz complexidade de deploy</td></tr>
+      <tr><td>ORM</td><td>Prisma ORM</td><td>Tipagem forte, migrations versionadas, segurança nas queries</td></tr>
+      <tr><td>Banco de dados</td><td>MySQL 8</td><td>Familiar ao time, robusto para o volume do projeto</td></tr>
+      <tr><td>Autenticação</td><td>NextAuth.js (JWT)</td><td>Integração nativa com Next.js, suporte a sessão e roles</td></tr>
+      <tr><td>API de jogos</td><td>football-data.org</td><td>Cobre Copa do Mundo completa com calendário e resultados</td></tr>
+      <tr><td>API de odds</td><td>The Odds API</td><td>Odds em tempo real para todos os mercados da Copa</td></tr>
+      <tr><td>Deploy</td><td>PM2 + Next.js standalone</td><td>Processo gerenciado, reinicialização automática em produção</td></tr>
+      <tr><td>Proxy reverso</td><td>Nginx</td><td>Exposição na porta 4000, SSL e redirecionamento para porta 3001</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">5.1 Jobs Automatizados (Cron)</h3>
+  <table>
+    <thead><tr><th>Job</th><th>Endpoint</th><th>Função</th></tr></thead>
+    <tbody>
+      <tr><td>Sync Partidas</td><td>GET /api/jobs/sync-matches</td><td>Atualiza status dos jogos (Ao Vivo / Encerrado) via API</td></tr>
+      <tr><td>Sync Resultados</td><td>GET /api/jobs/sync-results</td><td>Importa resultados e calcula pontuações automaticamente</td></tr>
+      <tr><td>Sync Odds</td><td>GET /api/jobs/sync-odds</td><td>Atualiza odds de todas as partidas agendadas</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 6. Modelo de Dados -->
+  <h2 class="section">6. Modelo de Dados (Prisma Schema)</h2>
+
+  <h3 class="subsection">User</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>String (cuid, PK)</td><td>Identificador único</td></tr>
+      <tr><td>name</td><td>String</td><td>Nome do participante</td></tr>
+      <tr><td>email</td><td>String (unique)</td><td>E-mail de acesso</td></tr>
+      <tr><td>passwordHash</td><td>String</td><td>Senha criptografada (bcrypt)</td></tr>
+      <tr><td>role</td><td>ENUM(PARTICIPANTE, ADMIN)</td><td>Perfil do usuário</td></tr>
+      <tr><td>status</td><td>ENUM(PENDENTE, ATIVO, RECUSADO)</td><td>Status de aprovação</td></tr>
+      <tr><td>championPick</td><td>String? (nullable)</td><td>Time escolhido como campeão <span class="badge-new">NOVO</span></td></tr>
+      <tr><td>createdAt</td><td>DateTime</td><td>Data de cadastro</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">Match</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>String (cuid, PK)</td><td>Identificador único</td></tr>
+      <tr><td>apiId</td><td>Int (unique)</td><td>ID do jogo na API externa</td></tr>
+      <tr><td>phase</td><td>ENUM(GRUPOS, PLAYOFFS, OITAVAS, QUARTAS, SEMI, FINAL)</td><td>Fase do torneio <span class="badge-updated">+PLAYOFFS</span></td></tr>
+      <tr><td>round</td><td>Int</td><td>Número da rodada dentro da fase</td></tr>
+      <tr><td>group</td><td>String</td><td>Grupo (A–L) na fase de grupos <span class="badge-new">NOVO</span></td></tr>
+      <tr><td>homeTeam</td><td>String</td><td>Time da casa</td></tr>
+      <tr><td>awayTeam</td><td>String</td><td>Time visitante</td></tr>
+      <tr><td>dateTime</td><td>DateTime</td><td>Data e hora de início (UTC)</td></tr>
+      <tr><td>result</td><td>ENUM(CASA, EMPATE, FORA)?</td><td>Resultado após 90 min / quem avançou</td></tr>
+      <tr><td>status</td><td>ENUM(AGENDADO, AO_VIVO, ENCERRADO)</td><td>Status da partida <span class="badge-updated">+AO_VIVO</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">Odd</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>String (cuid, PK)</td><td>Identificador único</td></tr>
+      <tr><td>matchId</td><td>String (FK Match)</td><td>Jogo relacionado</td></tr>
+      <tr><td>oddHome</td><td>Float</td><td>Odd para vitória do time da casa</td></tr>
+      <tr><td>oddDraw</td><td>Float</td><td>Odd para empate</td></tr>
+      <tr><td>oddAway</td><td>Float</td><td>Odd para vitória do visitante</td></tr>
+      <tr><td>favorite</td><td>ENUM(CASA, EMPATE, FORA)</td><td>Resultado com menor odd (favorito)</td></tr>
+      <tr><td>capturedAt</td><td>DateTime</td><td>Quando a odd foi importada da API</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">Prediction</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>String (cuid, PK)</td><td>Identificador único</td></tr>
+      <tr><td>userId</td><td>String (FK User)</td><td>Usuário que palpitou</td></tr>
+      <tr><td>matchId</td><td>String (FK Match)</td><td>Jogo palpitado</td></tr>
+      <tr><td>prediction</td><td>ENUM(CASA, EMPATE, FORA)</td><td>Escolha do usuário</td></tr>
+      <tr><td>oddId</td><td>String? (FK Odd)</td><td>Odd vigente no momento do palpite (nullable)</td></tr>
+      <tr><td>oddTimestamp</td><td>DateTime?</td><td>Momento em que o usuário confirmou</td></tr>
+      <tr><td>correct</td><td>Boolean?</td><td>true=acertou, false=errou, null=pendente</td></tr>
+      <tr><td>createdAt</td><td>DateTime</td><td>Criação do palpite</td></tr>
+      <tr><td>updatedAt</td><td>DateTime</td><td>Última alteração</td></tr>
+      <tr><td colspan="3"><em>Constraint: unique(userId, matchId) — um palpite por usuário por jogo</em></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">Round</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>String (cuid, PK)</td><td>Identificador único</td></tr>
+      <tr><td>phase</td><td>ENUM(GRUPOS, PLAYOFFS, OITAVAS, QUARTAS, SEMI, FINAL)</td><td>Fase do torneio</td></tr>
+      <tr><td>number</td><td>Int</td><td>Número da rodada dentro da fase</td></tr>
+      <tr><td>bonusCalculated</td><td>Boolean</td><td>Flag de controle de bônus</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">Score</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>String (cuid, PK)</td><td>Identificador único</td></tr>
+      <tr><td>userId</td><td>String (FK User)</td><td>Usuário</td></tr>
+      <tr><td>roundId</td><td>String (FK Round)</td><td>Rodada</td></tr>
+      <tr><td>roundPoints</td><td>Float</td><td>Pontos obtidos por acertos nesta rodada</td></tr>
+      <tr><td>bonus</td><td>Float</td><td>Bônus diário atribuído nesta rodada</td></tr>
+      <tr><td>accumulatedPoints</td><td>Float</td><td>Total (roundPoints + bonus)</td></tr>
+      <tr><td colspan="3"><em>Constraint: unique(userId, roundId)</em></td></tr>
+    </tbody>
+  </table>
+
+  <!-- 7. Telas Principais -->
+  <h2 class="section">7. Telas Principais</h2>
+  <table>
+    <thead><tr><th>Tela</th><th>Perfil</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td>Cadastro</td><td>Público</td><td>Formulário com aviso sobre pagamento de R$100</td></tr>
+      <tr><td>Login</td><td>Público</td><td>Autenticação por e-mail e senha</td></tr>
+      <tr><td>Home / Palpites</td><td>Participante</td><td>Palpite do campeão no topo + lista de jogos com filtros avançados e botão de auto-palpite por odds</td></tr>
+      <tr><td>Ranking</td><td>Participante</td><td>Pódio visual + classificação geral com pontos e acertos; posição do usuário destacada</td></tr>
+      <tr><td>Regras</td><td>Participante</td><td>Pontuação por fase, bônus, palpite do campeão e critérios de desempate</td></tr>
+      <tr><td>Admin — Usuários</td><td>Admin</td><td>Lista com filtro por status; aprovar / recusar pendentes; reativar recusados</td></tr>
+      <tr><td>Admin — Jogos</td><td>Admin</td><td>Lista de jogos com definição manual de resultado; botão de recálculo de bônus diário</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection">7.1 Navegação Inferior (BottomNav)</h3>
+  <p>Barra fixa na parte inferior da tela, acessível em todas as telas autenticadas:</p>
+  <table>
+    <thead><tr><th>Item</th><th>Destino</th><th>Visibilidade</th></tr></thead>
+    <tbody>
+      <tr><td>Palpites</td><td>/</td><td>Todos os usuários ativos</td></tr>
+      <tr><td>Ranking</td><td>/ranking</td><td>Todos os usuários ativos</td></tr>
+      <tr><td>Regras</td><td>/regras</td><td>Todos os usuários ativos</td></tr>
+      <tr><td>Admin</td><td>/admin</td><td>Somente administradores</td></tr>
+      <tr><td>Sair</td><td>—</td><td>Todos os usuários ativos</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 8. UX -->
+  <h2 class="section">8. Experiência do Usuário (UX)</h2>
+  <p>Interface mobile-first com foco em reduzir o esforço cognitivo do participante:</p>
+  <ul>
+    <li>Palpite em lote como fluxo principal — o usuário resolve múltiplos jogos em uma tela</li>
+    <li>Auto-palpite por odds reduz atrito — usuário só altera o que discordar</li>
+    <li>Filtros avançados permitem focar no grupo ou rodada de interesse</li>
+    <li>Botão flutuante de salvar aparece apenas quando há palpites pendentes</li>
+    <li>Palpite do campeão em destaque no topo da tela principal com indicação clara do prazo</li>
+    <li>Indicação visual de favorito (ponto colorido) em cada opção de resultado</li>
+    <li>Resultados exibidos com borda verde (acerto) ou vermelha (erro) nos cards</li>
+    <li>Feedback imediato (toast) após salvar, com contagem de palpites confirmados</li>
+    <li>Classificação sempre acessível com um toque via BottomNav</li>
+    <li>Loading skeletons evitam layout shift durante carregamento</li>
+  </ul>
+
+  <!-- 9. Premissas e Restrições -->
+  <h2 class="section">9. Premissas e Restrições</h2>
+  <table>
+    <thead><tr><th>Premissa / Restrição</th></tr></thead>
+    <tbody>
+      <tr><td>Sistema para um único grupo fechado de participantes</td></tr>
+      <tr><td>Sem integração com gateway de pagamento — controle manual pelo admin</td></tr>
+      <tr><td>Volume pequeno de usuários (bolão de amigos) — sem necessidade de escala horizontal</td></tr>
+      <tr><td>A Copa do Mundo 2026 começa em 11 de junho de 2026 — sistema em produção desde 16/05/2026</td></tr>
+      <tr><td>Banco de dados MySQL pela familiaridade do time e ambiente disponível</td></tr>
+      <tr><td>Todos os horários são armazenados em UTC e exibidos em BRT (UTC-3) na interface</td></tr>
+      <tr><td>Resultados importados automaticamente via API; admin pode corrigir manualmente quando necessário</td></tr>
+      <tr><td>O recálculo de bônus diário é acionado manualmente pelo admin após os resultados do dia</td></tr>
+      <tr><td>O palpite do campeão +100 pts deve ser processado manualmente pelo admin ao final da competição</td></tr>
+    </tbody>
+  </table>
+
+  <div class="confidential">Confidencial &nbsp;|&nbsp; Bolão Copa do Mundo 2026 &nbsp;|&nbsp; v2.0 &nbsp;|&nbsp; 16/05/2026</div>
+
+</div>
+</body>
+</html>

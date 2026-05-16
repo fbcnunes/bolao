@@ -29,9 +29,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
 
@@ -41,11 +39,9 @@ export default function RegisterPage() {
         setError(data.message || "Erro ao realizar cadastro.");
       } else {
         setSuccess(data.message);
-        setTimeout(() => {
-          router.push("/login");
-        }, 3000);
+        setTimeout(() => router.push("/login"), 3000);
       }
-    } catch (err) {
+    } catch {
       setError("Ocorreu um erro inesperado.");
     } finally {
       setLoading(false);
@@ -56,18 +52,20 @@ export default function RegisterPage() {
     <div className="min-h-screen flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-3 tracking-tight text-white">Solicitar Acesso</h1>
-          <p className="text-brand-muted">Crie sua conta para participar do bolão</p>
+          <h1 className="text-4xl font-bold mb-3 tracking-tight" style={{ color: "var(--text-primary)" }}>Solicitar Acesso</h1>
+          <p style={{ color: "var(--text-secondary)" }}>Crie sua conta para participar do bolão</p>
         </div>
 
         <div className="glass-card rounded-2xl p-8">
           {success ? (
-             <div className="bg-emerald-500/10 border border-emerald-500/50 text-emerald-400 p-6 rounded-xl text-center">
-               <svg className="w-12 h-12 mx-auto mb-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-               <h3 className="text-lg font-medium mb-2">Cadastro Solicitado!</h3>
-               <p className="text-sm text-emerald-200/80">{success}</p>
-               <p className="text-xs text-emerald-200/60 mt-4">Redirecionando para o login...</p>
-             </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/50 text-emerald-400 p-6 rounded-xl text-center">
+              <svg className="w-12 h-12 mx-auto mb-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="text-lg font-medium mb-2">Cadastro Solicitado!</h3>
+              <p className="text-sm text-emerald-200/80">{success}</p>
+              <p className="text-xs text-emerald-200/60 mt-4">Redirecionando para o login...</p>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
@@ -75,64 +73,28 @@ export default function RegisterPage() {
                   {error}
                 </div>
               )}
-              
+
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 ml-1 block" htmlFor="name">Nome completo</label>
-                <input
-                  id="name"
-                  type="text"
-                  required
-                  className="input-field"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+                <label className="text-sm font-medium ml-1 block" style={{ color: "var(--text-secondary)" }} htmlFor="name">Nome completo</label>
+                <input id="name" type="text" required className="input-field" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 ml-1 block" htmlFor="email">E-mail</label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  className="input-field"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+                <label className="text-sm font-medium ml-1 block" style={{ color: "var(--text-secondary)" }} htmlFor="email">E-mail</label>
+                <input id="email" type="email" required className="input-field" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 ml-1 block" htmlFor="password">Senha</label>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  className="input-field"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <label className="text-sm font-medium ml-1 block" style={{ color: "var(--text-secondary)" }} htmlFor="password">Senha</label>
+                <input id="password" type="password" required className="input-field" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 ml-1 block" htmlFor="confirmPassword">Confirmar Senha</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  required
-                  className="input-field"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
+                <label className="text-sm font-medium ml-1 block" style={{ color: "var(--text-secondary)" }} htmlFor="confirmPassword">Confirmar Senha</label>
+                <input id="confirmPassword" type="password" required className="input-field" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               </div>
 
-              <button 
-                type="submit" 
-                className="btn-primary w-full flex justify-center items-center mt-6"
-                disabled={loading}
-              >
+              <button type="submit" className="btn-primary w-full flex justify-center items-center mt-6" disabled={loading}>
                 {loading ? (
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -144,7 +106,7 @@ export default function RegisterPage() {
           )}
 
           <div className="mt-8 text-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Já tem uma conta?{' '}
               <Link href="/login" className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors">
                 Fazer login

@@ -31,24 +31,16 @@ const statusConfig = {
   RECUSADO: { label: "Recusado", class: "bg-red-500/10 text-red-400 border border-red-500/20" },
 };
 
-const matchStatusConfig = {
-  AGENDADO: "bg-slate-700/50 text-slate-300",
-  AO_VIVO: "bg-red-500/20 text-red-400",
-  ENCERRADO: "bg-slate-800 text-slate-500",
-};
-
 type Tab = "usuarios" | "jogos";
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("usuarios");
 
-  // Users state
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [userFilter, setUserFilter] = useState<"TODOS" | "PENDENTE" | "ATIVO" | "RECUSADO">("PENDENTE");
 
-  // Matches state
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchFilter, setMatchFilter] = useState<"AGENDADO" | "AO_VIVO" | "ENCERRADO" | "TODOS">("AGENDADO");
@@ -88,25 +80,16 @@ export default function AdminPage() {
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    if (tab === "jogos" && matches.length === 0) fetchMatches();
-  }, [tab]);
+  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { if (tab === "jogos" && matches.length === 0) fetchMatches(); }, [tab]);
 
   const handleUserAction = async (userId: string, action: "approve" | "reject" | "reactivate") => {
     setActionLoading(userId);
     try {
       const res = await fetch(`/api/admin/users/${userId}/${action}`, { method: "POST" });
       const data = await res.json();
-      if (res.ok) {
-        showMessage("success", data.message);
-        fetchUsers();
-      } else {
-        showMessage("error", data.message);
-      }
+      if (res.ok) { showMessage("success", data.message); fetchUsers(); }
+      else showMessage("error", data.message);
     } catch {
       showMessage("error", "Erro ao realizar ação.");
     } finally {
@@ -119,11 +102,8 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/bonuses", { method: "POST" });
       const data = await res.json();
-      if (res.ok) {
-        showMessage("success", `Bônus recalculados! ${data.bonusAwarded} bônus atribuído(s).`);
-      } else {
-        showMessage("error", data.message || "Erro ao calcular bônus.");
-      }
+      if (res.ok) showMessage("success", `Bônus recalculados! ${data.bonusAwarded} bônus atribuído(s).`);
+      else showMessage("error", data.message || "Erro ao calcular bônus.");
     } catch {
       showMessage("error", "Erro ao calcular bônus.");
     } finally {
@@ -138,11 +118,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/matches", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          matchId: editing.matchId,
-          status: editing.status,
-          result: editing.result,
-        }),
+        body: JSON.stringify({ matchId: editing.matchId, status: editing.status, result: editing.result }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -174,8 +150,10 @@ export default function AdminPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer
-                ${tab === t ? "bg-brand-primary text-white" : "bg-slate-800/60 text-slate-400 hover:text-white"}`}
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                tab === t ? "bg-brand-primary text-white" : ""
+              }`}
+              style={tab !== t ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
             >
               {t === "usuarios" ? `Usuários${pendingCount > 0 ? ` (${pendingCount})` : ""}` : "Jogos"}
             </button>
@@ -184,11 +162,11 @@ export default function AdminPage() {
 
         {/* Toast */}
         {message && (
-          <div className={`mb-4 p-3 rounded-xl text-sm font-medium text-center
-            ${message.type === "success"
+          <div className={`mb-4 p-3 rounded-xl text-sm font-medium text-center ${
+            message.type === "success"
               ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
               : "bg-red-500/15 border border-red-500/30 text-red-400"
-            }`}>
+          }`}>
             {message.text}
           </div>
         )}
@@ -196,17 +174,19 @@ export default function AdminPage() {
         {/* Edit Result Modal */}
         {editing && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center p-4 pb-24">
-            <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 w-full max-w-sm">
-              <h3 className="text-white font-bold mb-4 text-center">Definir Resultado</h3>
+            <div className="rounded-2xl p-5 w-full max-w-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+              <h3 className="font-bold mb-4 text-center" style={{ color: "var(--text-primary)" }}>Definir Resultado</h3>
               <div className="mb-4">
-                <p className="text-xs text-slate-400 mb-2 text-center">Status do jogo</p>
+                <p className="text-xs mb-2 text-center" style={{ color: "var(--text-muted)" }}>Status do jogo</p>
                 <div className="flex gap-2">
                   {(["AGENDADO", "AO_VIVO", "ENCERRADO"] as const).map((s) => (
                     <button
                       key={s}
                       onClick={() => setEditing((e) => e ? { ...e, status: s, result: s !== "ENCERRADO" ? null : e.result } : e)}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all
-                        ${editing.status === s ? "bg-brand-primary text-white" : "bg-slate-800 text-slate-400"}`}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all ${
+                        editing.status === s ? "bg-brand-primary text-white" : ""
+                      }`}
+                      style={editing.status !== s ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                     >
                       {s === "AGENDADO" ? "Agendado" : s === "AO_VIVO" ? "Ao Vivo" : "Encerrado"}
                     </button>
@@ -215,14 +195,16 @@ export default function AdminPage() {
               </div>
               {editing.status === "ENCERRADO" && (
                 <div className="mb-5">
-                  <p className="text-xs text-slate-400 mb-2 text-center">Resultado</p>
+                  <p className="text-xs mb-2 text-center" style={{ color: "var(--text-muted)" }}>Resultado</p>
                   <div className="flex gap-2">
                     {(["CASA", "EMPATE", "FORA"] as const).map((r) => (
                       <button
                         key={r}
                         onClick={() => setEditing((e) => e ? { ...e, result: r } : e)}
-                        className={`flex-1 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all
-                          ${editing.result === r ? "bg-brand-primary text-white" : "bg-slate-800 text-slate-400"}`}
+                        className={`flex-1 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-all ${
+                          editing.result === r ? "bg-brand-primary text-white" : ""
+                        }`}
+                        style={editing.result !== r ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                       >
                         {r === "CASA" ? "Casa" : r === "EMPATE" ? "Empate" : "Fora"}
                       </button>
@@ -233,7 +215,8 @@ export default function AdminPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditing(null)}
-                  className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-slate-800 text-slate-400 cursor-pointer"
+                  className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer"
+                  style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}
                 >
                   Cancelar
                 </button>
@@ -254,13 +237,13 @@ export default function AdminPage() {
           <>
             <div className="grid grid-cols-3 gap-3 mb-4">
               {[
-                { label: "Total", value: users.length, color: "text-white" },
+                { label: "Total", value: users.length, color: "" },
                 { label: "Ativos", value: users.filter((u) => u.status === "ATIVO").length, color: "text-emerald-400" },
                 { label: "Pendentes", value: pendingCount, color: "text-amber-400" },
               ].map((stat) => (
-                <div key={stat.label} className="glass-card rounded-xl p-3 text-center">
-                  <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-slate-500 text-xs">{stat.label}</p>
+                <div key={stat.label} className="rounded-xl p-3 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+                  <p className={`text-2xl font-bold ${stat.color}`} style={!stat.color ? { color: "var(--text-primary)" } : {}}>{stat.value}</p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -270,8 +253,10 @@ export default function AdminPage() {
                 <button
                   key={f}
                   onClick={() => setUserFilter(f)}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap
-                    ${userFilter === f ? "bg-brand-primary text-white" : "bg-slate-800/60 text-slate-400 hover:text-white"}`}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    userFilter === f ? "bg-brand-primary text-white" : ""
+                  }`}
+                  style={userFilter !== f ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                 >
                   {f === "TODOS" ? "Todos" : f === "PENDENTE" ? `Pendentes${pendingCount > 0 ? ` (${pendingCount})` : ""}` : f === "ATIVO" ? "Ativos" : "Recusados"}
                 </button>
@@ -281,21 +266,21 @@ export default function AdminPage() {
             {usersLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="glass-card rounded-2xl p-4 animate-pulse">
+                  <div key={i} className="rounded-2xl p-4 animate-pulse border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-700 rounded-full"></div>
+                      <div className="w-10 h-10 rounded-full" style={{ background: "var(--bg-card2)" }}></div>
                       <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-slate-700 rounded w-2/3"></div>
-                        <div className="h-3 bg-slate-700 rounded w-1/2"></div>
+                        <div className="h-4 rounded w-2/3" style={{ background: "var(--bg-card2)" }}></div>
+                        <div className="h-3 rounded w-1/2" style={{ background: "var(--bg-card2)" }}></div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : filteredUsers.length === 0 ? (
-              <div className="glass-card rounded-2xl p-8 text-center">
+              <div className="rounded-2xl p-8 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                 <p className="text-3xl mb-3">👥</p>
-                <p className="text-slate-400 text-sm">Nenhum usuário nesta categoria.</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Nenhum usuário nesta categoria.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -303,15 +288,15 @@ export default function AdminPage() {
                   const sc = statusConfig[user.status];
                   const isProcessing = actionLoading === user.id;
                   return (
-                    <div key={user.id} className="glass-card rounded-2xl p-4">
+                    <div key={user.id} className="rounded-2xl p-4 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold">{user.name[0].toUpperCase()}</span>
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg-card2)" }}>
+                            <span className="font-bold" style={{ color: "var(--text-primary)" }}>{user.name[0].toUpperCase()}</span>
                           </div>
                           <div>
-                            <p className="text-white font-semibold text-sm">{user.name}</p>
-                            <p className="text-slate-500 text-xs truncate max-w-[180px]">{user.email}</p>
+                            <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{user.name}</p>
+                            <p className="text-xs truncate max-w-[180px]" style={{ color: "var(--text-muted)" }}>{user.email}</p>
                           </div>
                         </div>
                         <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium ${sc.class}`}>
@@ -374,8 +359,10 @@ export default function AdminPage() {
                 <button
                   key={f}
                   onClick={() => setMatchFilter(f)}
-                  className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap
-                    ${matchFilter === f ? "bg-brand-primary text-white" : "bg-slate-800/60 text-slate-400 hover:text-white"}`}
+                  className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    matchFilter === f ? "bg-brand-primary text-white" : ""
+                  }`}
+                  style={matchFilter !== f ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
                 >
                   {f === "TODOS" ? "Todos" : f === "AGENDADO" ? "Agendados" : f === "AO_VIVO" ? "Ao Vivo" : "Encerrados"}
                 </button>
@@ -385,54 +372,57 @@ export default function AdminPage() {
             {matchesLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="glass-card rounded-2xl p-4 animate-pulse">
-                    <div className="h-4 bg-slate-700 rounded w-1/3 mb-2"></div>
+                  <div key={i} className="rounded-2xl p-4 animate-pulse border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+                    <div className="h-4 rounded w-1/3 mb-2" style={{ background: "var(--bg-card2)" }}></div>
                     <div className="flex justify-between">
-                      <div className="h-5 bg-slate-700 rounded w-1/3"></div>
-                      <div className="h-5 bg-slate-700 rounded w-1/4"></div>
-                      <div className="h-5 bg-slate-700 rounded w-1/3"></div>
+                      <div className="h-5 rounded w-1/3" style={{ background: "var(--bg-card2)" }}></div>
+                      <div className="h-5 rounded w-1/4" style={{ background: "var(--bg-card2)" }}></div>
+                      <div className="h-5 rounded w-1/3" style={{ background: "var(--bg-card2)" }}></div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : filteredMatches.length === 0 ? (
-              <div className="glass-card rounded-2xl p-8 text-center">
+              <div className="rounded-2xl p-8 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                 <p className="text-3xl mb-3">⚽</p>
-                <p className="text-slate-400 text-sm">Nenhum jogo encontrado.</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Nenhum jogo encontrado.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredMatches.map((match) => (
-                  <div key={match.id} className="glass-card rounded-2xl p-4">
+                  <div key={match.id} className="rounded-2xl p-4 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">
+                      <span className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
                         {match.phase.replace("_", " ")} · R{match.round}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${matchStatusConfig[match.status]}`}>
-                        {match.status === "AGENDADO"
-                          ? format(new Date(match.dateTime), "dd/MM · HH:mm", { locale: ptBR })
-                          : match.status === "AO_VIVO"
-                          ? "● Ao Vivo"
-                          : "Encerrado"}
-                      </span>
+                      {match.status === "AO_VIVO" ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-500/20 text-red-400">● Ao Vivo</span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--bg-card2)", color: "var(--text-muted)" }}>
+                          {match.status === "AGENDADO"
+                            ? format(new Date(match.dateTime), "dd/MM · HH:mm", { locale: ptBR })
+                            : "Encerrado"}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <p className={`flex-1 text-sm font-bold text-center ${match.result === "CASA" ? "text-brand-primary" : "text-white"}`}>
+                      <p className={`flex-1 text-sm font-bold text-center ${match.result === "CASA" ? "text-brand-primary" : ""}`} style={match.result !== "CASA" ? { color: "var(--text-primary)" } : {}}>
                         {match.homeTeam}
                       </p>
-                      <span className="text-slate-600 text-xs font-bold">VS</span>
-                      <p className={`flex-1 text-sm font-bold text-center ${match.result === "FORA" ? "text-brand-primary" : "text-white"}`}>
+                      <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>VS</span>
+                      <p className={`flex-1 text-sm font-bold text-center ${match.result === "FORA" ? "text-brand-primary" : ""}`} style={match.result !== "FORA" ? { color: "var(--text-primary)" } : {}}>
                         {match.awayTeam}
                       </p>
                     </div>
                     {match.result && (
-                      <p className="text-center text-xs text-slate-500 mb-2">
+                      <p className="text-center text-xs mb-2" style={{ color: "var(--text-muted)" }}>
                         Resultado: {match.result === "CASA" ? match.homeTeam : match.result === "FORA" ? match.awayTeam : "Empate"}
                       </p>
                     )}
                     <button
                       onClick={() => setEditing({ matchId: match.id, status: match.status !== "ENCERRADO" ? "ENCERRADO" : match.status, result: match.result })}
-                      className="w-full py-2 text-xs font-semibold rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all cursor-pointer"
+                      className="w-full py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer hover:opacity-70"
+                      style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}
                     >
                       {match.status === "ENCERRADO" ? "Editar resultado" : "Definir resultado"}
                     </button>

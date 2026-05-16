@@ -52,9 +52,9 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 ml-1 block" htmlFor="email">E-mail</label>
+              <label className="text-sm font-medium ml-1 block" style={{ color: "var(--text-secondary)" }} htmlFor="email">E-mail</label>
               <input
                 id="email"
                 type="email"
@@ -68,7 +68,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-medium text-slate-300 block" htmlFor="password">Senha</label>
+                <label className="text-sm font-medium block" style={{ color: "var(--text-secondary)" }} htmlFor="password">Senha</label>
               </div>
               <input
                 id="password"
@@ -96,7 +96,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 text-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Não tem uma conta?{' '}
               <Link href="/cadastro" className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors">
                 Solicite acesso

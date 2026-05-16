@@ -43,20 +43,20 @@ export default function RankingPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="glass-card rounded-2xl p-4 animate-pulse">
+              <div key={i} className="rounded-2xl p-4 animate-pulse border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-slate-700 rounded-full"></div>
-                  <div className="flex-1 h-5 bg-slate-700 rounded"></div>
-                  <div className="w-16 h-5 bg-slate-700 rounded"></div>
+                  <div className="w-8 h-8 rounded-full" style={{ background: "var(--bg-card2)" }}></div>
+                  <div className="flex-1 h-5 rounded" style={{ background: "var(--bg-card2)" }}></div>
+                  <div className="w-16 h-5 rounded" style={{ background: "var(--bg-card2)" }}></div>
                 </div>
               </div>
             ))}
           </div>
         ) : ranking.length === 0 ? (
-          <div className="glass-card rounded-2xl p-8 text-center mt-8">
+          <div className="rounded-2xl p-8 text-center mt-8 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
             <p className="text-4xl mb-3">🏆</p>
-            <p className="text-white font-semibold mb-1">Ranking ainda vazio</p>
-            <p className="text-slate-500 text-sm">Dê seus palpites e apareça aqui!</p>
+            <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Ranking ainda vazio</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Dê seus palpites e apareça aqui!</p>
           </div>
         ) : (
           <>
@@ -66,12 +66,12 @@ export default function RankingPage() {
                 <p className="text-xs text-brand-primary font-semibold uppercase tracking-wider mb-1">Sua posição</p>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-white">#{myPosition}</span>
-                    <span className="text-white font-semibold">{myEntry.user.name}</span>
+                    <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>#{myPosition}</span>
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{myEntry.user.name}</span>
                   </div>
                   <div className="text-right">
                     <p className="text-brand-primary font-bold text-lg">{myEntry.totalPoints.toFixed(1)} pts</p>
-                    <p className="text-slate-500 text-xs">{myEntry.correctPredictions} acertos</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{myEntry.correctPredictions} acertos</p>
                   </div>
                 </div>
               </div>
@@ -80,16 +80,20 @@ export default function RankingPage() {
             {/* Top 3 Podium */}
             {top3.length > 0 && (
               <div className="mb-4">
-                <h2 className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-3">Pódio</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Pódio</h2>
                 <div className="grid grid-cols-3 gap-3">
                   {top3.map((entry, idx) => (
-                    <div key={entry.user.id} className={`glass-card rounded-2xl p-3 text-center ${entry.user.id === session?.user?.id ? "border-brand-primary/50" : ""}`}>
+                    <div
+                      key={entry.user.id}
+                      className={`rounded-2xl p-3 text-center border ${entry.user.id === session?.user?.id ? "border-brand-primary/50" : ""}`}
+                      style={{ background: "var(--bg-card)", borderColor: entry.user.id === session?.user?.id ? undefined : "var(--border-base)" }}
+                    >
                       <p className="text-2xl mb-1">{podiumIcons[idx]}</p>
-                      <p className="text-white text-xs font-semibold leading-tight truncate">{entry.user.name.split(" ")[0]}</p>
+                      <p className="text-xs font-semibold leading-tight truncate" style={{ color: "var(--text-primary)" }}>{entry.user.name.split(" ")[0]}</p>
                       <p className={`text-sm font-bold mt-1 bg-gradient-to-r ${podiumColors[idx]} text-transparent bg-clip-text`}>
                         {entry.totalPoints.toFixed(1)}
                       </p>
-                      <p className="text-slate-600 text-[10px]">{entry.correctPredictions} ✓</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{entry.correctPredictions} ✓</p>
                     </div>
                   ))}
                 </div>
@@ -97,42 +101,42 @@ export default function RankingPage() {
             )}
 
             {/* Full Ranking List */}
-            <h2 className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-3">Classificação Geral</h2>
-            <div className="space-y-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Classificação Geral</h2>
+            <div className="space-y-2 pb-6">
               {ranking.map((entry, idx) => {
                 const isMe = entry.user.id === session?.user?.id;
                 const position = idx + 1;
                 return (
                   <div
                     key={entry.user.id}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl transition-all
-                      ${isMe ? "bg-brand-primary/10 border border-brand-primary/20" : "bg-slate-800/40 border border-white/5"}
-                    `}
+                    className={`flex items-center gap-3 p-3.5 rounded-xl transition-all border ${
+                      isMe ? "bg-brand-primary/10 border-brand-primary/20" : ""
+                    }`}
+                    style={!isMe ? { background: "var(--bg-card)", borderColor: "var(--border-base)" } : {}}
                   >
                     <span className={`w-7 text-center text-sm font-bold ${
                       position === 1 ? "text-amber-400" :
-                      position === 2 ? "text-slate-300" :
-                      position === 3 ? "text-amber-700" :
-                      "text-slate-500"
-                    }`}>
+                      position === 2 ? "text-slate-400" :
+                      position === 3 ? "text-amber-700" : ""
+                    }`} style={position > 3 ? { color: "var(--text-muted)" } : {}}>
                       {position}
                     </span>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-700 border border-white/10">
-                      <span className={`text-sm font-bold ${isMe ? "text-brand-primary" : "text-slate-300"}`}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center border" style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)" }}>
+                      <span className={`text-sm font-bold ${isMe ? "text-brand-primary" : ""}`} style={!isMe ? { color: "var(--text-secondary)" } : {}}>
                         {entry.user.name[0].toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold truncate ${isMe ? "text-brand-primary" : "text-white"}`}>
-                        {entry.user.name} {isMe && <span className="text-xs font-normal">(você)</span>}
+                      <p className={`text-sm font-semibold truncate ${isMe ? "text-brand-primary" : ""}`} style={!isMe ? { color: "var(--text-primary)" } : {}}>
+                        {entry.user.name} {isMe && <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>(você)</span>}
                       </p>
-                      <p className="text-slate-500 text-xs">{entry.correctPredictions} acerto{entry.correctPredictions !== 1 ? "s" : ""}</p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{entry.correctPredictions} acerto{entry.correctPredictions !== 1 ? "s" : ""}</p>
                     </div>
                     <div className="text-right">
-                      <p className={`font-bold text-sm ${isMe ? "text-brand-primary" : "text-white"}`}>
+                      <p className={`font-bold text-sm ${isMe ? "text-brand-primary" : ""}`} style={!isMe ? { color: "var(--text-primary)" } : {}}>
                         {entry.totalPoints.toFixed(1)}
                       </p>
-                      <p className="text-slate-600 text-[10px]">pontos</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>pontos</p>
                     </div>
                   </div>
                 );
