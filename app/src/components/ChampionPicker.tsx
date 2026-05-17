@@ -10,7 +10,7 @@ type ChampionState = {
   deadline: string | null;
 };
 
-export default function ChampionPicker({ teams }: { teams: string[] }) {
+export default function ChampionPicker({ bolaoId, teams }: { bolaoId: string; teams: string[] }) {
   const [state, setState] = useState<ChampionState | null>(null);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -18,14 +18,14 @@ export default function ChampionPicker({ teams }: { teams: string[] }) {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/user/champion")
+    fetch(`/api/user/champion?bolaoId=${bolaoId}`)
       .then((r) => r.json())
       .then((data) => {
         setState(data);
         if (!data.championPick && !data.isLocked) setExpanded(true);
       })
       .catch(() => {});
-  }, []);
+  }, [bolaoId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -39,7 +39,7 @@ export default function ChampionPicker({ teams }: { teams: string[] }) {
       const res = await fetch("/api/user/champion", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team }),
+        body: JSON.stringify({ bolaoId, team }),
       });
       const data = await res.json();
       if (res.ok) {

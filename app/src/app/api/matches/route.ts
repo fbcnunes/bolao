@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -11,11 +12,25 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
+  const bolaoId = searchParams.get("bolaoId");
   const round = searchParams.get("round");
   const today = searchParams.get("today");
 
+  if (!bolaoId) {
+    return NextResponse.json({ message: "Bolão obrigatório" }, { status: 400 });
+  }
+
   try {
-    let whereClause: any = {};
+    const membership = await prisma.bolaoMember.findUnique({
+      where: { bolaoId_userId: { bolaoId, userId: session.user.id } },
+      select: { status: true },
+    });
+
+    if (!membership || membership.status !== "ATIVO") {
+      return NextResponse.json({ message: "Você não participa deste bolão" }, { status: 403 });
+    }
+
+    const whereClause: Prisma.MatchWhereInput = {};
 
     if (round) {
       whereClause.round = parseInt(round);
@@ -42,7 +57,7 @@ export async function GET(req: Request) {
           take: 1,
         },
         predictions: {
-          where: { userId: session.user.id },
+          where: { bolaoId, userId: session.user.id },
         },
       },
     });

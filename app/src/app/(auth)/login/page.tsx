@@ -1,16 +1,21 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const callbackParam = searchParams.get("callbackUrl");
+  const callbackUrl = callbackParam?.startsWith("/") && !callbackParam.startsWith("//") ? callbackParam : "/";
+  const cadastroHref = `/cadastro?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,10 +33,10 @@ export default function LoginPage() {
         setError(res.error);
         setLoading(false);
       } else {
-        router.push("/");
+        router.push(callbackUrl);
         router.refresh();
       }
-    } catch (err) {
+    } catch {
       setError("Ocorreu um erro inesperado.");
       setLoading(false);
     }
@@ -98,13 +103,21 @@ export default function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Não tem uma conta?{' '}
-              <Link href="/cadastro" className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors">
-                Solicite acesso
+              <Link href={cadastroHref} className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors">
+                Criar conta
               </Link>
             </p>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }

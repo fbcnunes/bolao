@@ -13,13 +13,31 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const roundId = searchParams.get("roundId");
+    const bolaoId = searchParams.get("bolaoId");
+
+    if (!bolaoId) {
+      return NextResponse.json({ message: "Bolão obrigatório" }, { status: 400 });
+    }
+
+    const isMaster = session.user.role === "MASTER";
+
+    if (!isMaster) {
+      const membership = await prisma.bolaoMember.findUnique({
+        where: { bolaoId_userId: { bolaoId, userId: session.user.id } },
+        select: { status: true },
+      });
+
+      if (!membership || membership.status !== "ATIVO") {
+        return NextResponse.json({ message: "Você não participa deste bolão" }, { status: 403 });
+      }
+    }
 
     let ranking;
 
     if (roundId) {
       // Ranking por rodada
       ranking = await prisma.score.findMany({
-        where: { roundId },
+        where: { bolaoId, roundId },
         orderBy: [
           { roundPoints: "desc" },
           { bonus: "desc" }
@@ -31,19 +49,29 @@ export async function GET(req: Request) {
         }
       });
     } else {
-      // Ranking Geral
+      // Ranking do bolão selecionado
+      const members = await prisma.bolaoMember.findMany({
+        where: { bolaoId, status: "ATIVO" },
+        select: { userId: true },
+      });
+      const userIdFilter = members.map((m) => m.userId);
+
       const users = await prisma.user.findMany({
-        where: { status: "ATIVO" },
+        where: {
+          status: "ATIVO",
+          id: { in: userIdFilter },
+        },
         select: {
           id: true,
           name: true,
           scores: {
+            where: { bolaoId },
             select: {
               accumulatedPoints: true
             }
           },
           predictions: {
-            where: { correct: true },
+            where: { bolaoId, correct: true },
             select: { id: true }
           }
         }

@@ -9,14 +9,33 @@ datasource db {
 }
 
 enum Role {
+  MASTER
   PARTICIPANTE
+}
+
+enum BolaoStatus {
+  PENDENTE
+  ATIVO
+  RECUSADO
+}
+
+enum MemberRole {
   ADMIN
+  PARTICIPANTE
 }
 
 enum UserStatus {
   PENDENTE
   ATIVO
   RECUSADO
+  REMOVIDO
+}
+
+enum MemberStatus {
+  PENDENTE
+  ATIVO
+  RECUSADO
+  REMOVIDO
 }
 
 enum MatchPhase {
@@ -41,29 +60,56 @@ enum PredictionResult {
 }
 
 model User {
-  id            String       @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String
-  email         String       @unique
+  email         String        @unique
   passwordHash  String
-  role          Role         @default(PARTICIPANTE)
-  status        UserStatus   @default(PENDENTE)
-  championPick  String?
-  createdAt     DateTime     @default(now())
+  role          Role          @default(PARTICIPANTE)
+  status        UserStatus    @default(PENDENTE)
+  createdAt     DateTime      @default(now())
   predictions   Prediction[]
   scores        Score[]
+  boloesCreated Bolao[]
+  bolaoMembers  BolaoMember[]
+}
+
+model Bolao {
+  id              String        @id @default(cuid())
+  nome            String
+  inviteCode      String        @unique @default(cuid())
+  status          BolaoStatus   @default(PENDENTE)
+  premiacaoRegra  String?       @db.Text
+  createdById     String
+  createdBy       User          @relation(fields: [createdById], references: [id])
+  members         BolaoMember[]
+  predictions     Prediction[]
+  scores          Score[]
+  createdAt       DateTime      @default(now())
+}
+
+model BolaoMember {
+  bolaoId      String
+  bolao        Bolao        @relation(fields: [bolaoId], references: [id])
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  role         MemberRole   @default(PARTICIPANTE)
+  status       MemberStatus @default(PENDENTE)
+  championPick String?
+
+  @@id([bolaoId, userId])
 }
 
 model Match {
-  id          String       @id @default(cuid())
-  apiId       Int          @unique
+  id          String            @id @default(cuid())
+  apiId       Int               @unique
   phase       MatchPhase
   round       Int
-  group       String       @default("")
+  group       String            @default("")
   homeTeam    String
   awayTeam    String
   dateTime    DateTime
   result      PredictionResult?
-  status      MatchStatus  @default(AGENDADO)
+  status      MatchStatus       @default(AGENDADO)
   odds        Odd[]
   predictions Prediction[]
 }
@@ -81,32 +127,36 @@ model Odd {
 }
 
 model Prediction {
-  id           String            @id @default(cuid())
+  id           String           @id @default(cuid())
+  bolaoId      String
+  bolao        Bolao            @relation(fields: [bolaoId], references: [id])
   userId       String
-  user         User              @relation(fields: [userId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
   matchId      String
-  match        Match             @relation(fields: [matchId], references: [id])
+  match        Match            @relation(fields: [matchId], references: [id])
   prediction   PredictionResult
   oddId        String?
-  odd          Odd?              @relation(fields: [oddId], references: [id])
+  odd          Odd?             @relation(fields: [oddId], references: [id])
   oddTimestamp DateTime?
   correct      Boolean?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  @@unique([userId, matchId])
+  @@unique([bolaoId, userId, matchId])
 }
 
 model Round {
-  id              String   @id @default(cuid())
+  id              String     @id @default(cuid())
   phase           MatchPhase
   number          Int
-  bonusCalculated Boolean  @default(false)
+  bonusCalculated Boolean    @default(false)
   scores          Score[]
 }
 
 model Score {
   id                String @id @default(cuid())
+  bolaoId           String
+  bolao             Bolao  @relation(fields: [bolaoId], references: [id])
   userId            String
   user              User   @relation(fields: [userId], references: [id])
   roundId           String
@@ -115,5 +165,5 @@ model Score {
   bonus             Float  @default(0)
   accumulatedPoints Float  @default(0)
 
-  @@unique([userId, roundId])
+  @@unique([bolaoId, userId, roundId])
 }

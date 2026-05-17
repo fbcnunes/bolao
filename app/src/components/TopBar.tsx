@@ -2,13 +2,16 @@
 
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useBolao } from "@/contexts/BolaoContext";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    void Promise.resolve().then(() => setMounted(true));
+  }, []);
   if (!mounted) return <div className="w-8 h-8" />;
 
   const isDark = theme === "dark";
@@ -33,21 +36,89 @@ function ThemeToggle() {
   );
 }
 
+function BolaoSelector() {
+  const { boloes, activeBolao, setActiveBolao } = useBolao();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const ativos = boloes.filter((b) => b.status === "ATIVO");
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  if (ativos.length === 0) return null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all active:scale-95 border max-w-[140px]"
+        style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)", color: "var(--text-primary)" }}
+      >
+        <span className="truncate">{activeBolao?.nome ?? "Selecionar"}</span>
+        <svg className={`w-3 h-3 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-52 rounded-xl shadow-xl border z-50 overflow-hidden" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+          {ativos.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => { setActiveBolao(b); setOpen(false); }}
+              className={`w-full text-left px-4 py-3 text-sm font-medium transition-all cursor-pointer hover:opacity-80 flex items-center justify-between gap-2 ${
+                activeBolao?.id === b.id ? "text-brand-primary" : ""
+              }`}
+              style={activeBolao?.id !== b.id ? { color: "var(--text-primary)" } : {}}
+            >
+              <span className="truncate">{b.nome}</span>
+              {activeBolao?.id === b.id && (
+                <svg className="w-4 h-4 text-brand-primary flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TopBar({ title }: { title: string }) {
   const { data: session } = useSession();
+  const isMaster = session?.user?.role === "MASTER";
+  const identity = session?.user?.name || session?.user?.email || "Usuário";
+  const initial = identity[0]?.toUpperCase() ?? "?";
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-lg" style={{ background: "var(--bg-topbar)", borderBottom: "1px solid var(--border-base)" }}>
       <div className="flex items-center justify-between px-4 h-14 max-w-lg mx-auto">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">⚽</span>
-          <h1 className="text-lg font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>{title}</h1>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-2xl flex-shrink-0">⚽</span>
+          <h1 className="text-lg font-bold tracking-tight truncate" style={{ color: "var(--text-primary)" }}>{title}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isMaster && <BolaoSelector />}
           <ThemeToggle />
-          <div className="w-8 h-8 rounded-full bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center">
-            <span className="text-brand-primary text-sm font-bold">
-              {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
+          <div
+            className="h-8 min-w-0 max-w-[124px] rounded-full pl-1 pr-2 border flex items-center gap-1.5"
+            style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)" }}
+            title={identity}
+          >
+            <div className="w-6 h-6 rounded-full bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center flex-shrink-0">
+              <span className="text-brand-primary text-xs font-bold">
+                {initial}
+              </span>
+            </div>
+            <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+              {identity}
             </span>
           </div>
         </div>

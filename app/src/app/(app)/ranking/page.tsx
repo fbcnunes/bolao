@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import TopBar from "@/components/TopBar";
 import { useSession } from "next-auth/react";
+import { useBolao } from "@/contexts/BolaoContext";
 
 type RankingEntry = {
   user: { id: string; name: string };
@@ -20,27 +21,54 @@ const podiumIcons = ["🥇", "🥈", "🥉"];
 
 export default function RankingPage() {
   const { data: session } = useSession();
+  const { activeBolao } = useBolao();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const activeBolaoId = activeBolao?.id;
 
   useEffect(() => {
-    fetch("/api/ranking")
-      .then((r) => r.json())
-      .then((data) => setRanking(Array.isArray(data) ? data : []))
-      .finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+
+    void Promise.resolve().then(async () => {
+      if (!activeBolaoId) {
+        if (!cancelled) {
+          setRanking([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/ranking?bolaoId=${activeBolaoId}`);
+        const data = await res.json();
+        if (!cancelled) setRanking(Array.isArray(data) ? data : []);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBolaoId]);
 
   const myEntry = ranking.find((e) => e.user.id === session?.user?.id);
   const myPosition = ranking.findIndex((e) => e.user.id === session?.user?.id) + 1;
   const top3 = ranking.slice(0, 3);
-  const rest = ranking.slice(3);
 
   return (
     <div className="min-h-screen">
-      <TopBar title="Ranking" />
+      <TopBar title={activeBolao ? `Ranking · ${activeBolao.nome}` : "Ranking"} />
 
       <main className="max-w-lg mx-auto px-4 pt-4">
-        {loading ? (
+        {!activeBolao ? (
+          <div className="rounded-2xl p-10 text-center mt-8 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+            <p className="text-4xl mb-3">🏆</p>
+            <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Nenhum bolão selecionado</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Selecione um bolão no topo da tela para ver o ranking.</p>
+          </div>
+        ) : loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="rounded-2xl p-4 animate-pulse border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
@@ -144,7 +172,7 @@ export default function RankingPage() {
             </div>
           </>
         )}
-      </main>
+        </main>
     </div>
   );
 }

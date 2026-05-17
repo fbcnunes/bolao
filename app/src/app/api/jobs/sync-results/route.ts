@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { footballData, normalizeTeamName } from "@/lib/football-data";
 
+type FootballDataMatch = {
+  homeTeam?: { name?: string };
+  awayTeam?: { name?: string };
+  score?: { fullTime?: { home?: number | null; away?: number | null } };
+};
+
 const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(req: Request) {
@@ -14,7 +20,7 @@ export async function GET(req: Request) {
 
   try {
     const data = await footballData.getFinishedMatches();
-    const apiMatches: any[] = data.matches ?? [];
+    const apiMatches: FootballDataMatch[] = data.matches ?? [];
 
     let processedCount = 0;
     let skippedCount = 0;
@@ -73,12 +79,13 @@ export async function GET(req: Request) {
 
           if (round) {
             await prisma.score.upsert({
-              where: { userId_roundId: { userId: prediction.userId, roundId: round.id } },
+              where: { bolaoId_userId_roundId: { bolaoId: prediction.bolaoId, userId: prediction.userId, roundId: round.id } },
               update: {
                 roundPoints: { increment: pointsEarned },
                 accumulatedPoints: { increment: pointsEarned },
               },
               create: {
+                bolaoId: prediction.bolaoId,
                 userId: prediction.userId,
                 roundId: round.id,
                 roundPoints: pointsEarned,
@@ -102,10 +109,10 @@ export async function GET(req: Request) {
       processedCount,
       skippedCount,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("sync-results error:", error);
     return NextResponse.json(
-      { message: "Erro ao sincronizar resultados", error: error.message },
+      { message: "Erro ao sincronizar resultados", error: error instanceof Error ? error.message : "Erro desconhecido" },
       { status: 500 }
     );
   }

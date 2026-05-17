@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "deploy": "next build && cp -r .next/static .next/standalone/.next/static && pm2 restart bolao",
+    "deploy": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && pm2 restart bolao",
     "start": "next start",
     "lint": "eslint"
   },

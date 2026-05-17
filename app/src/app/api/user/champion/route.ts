@@ -12,22 +12,30 @@ async function getDeadline(): Promise<Date | null> {
   return first?.dateTime ?? null;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
 
-  const [user, deadline] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { championPick: true },
+  const { searchParams } = new URL(req.url);
+  const bolaoId = searchParams.get("bolaoId");
+  if (!bolaoId) return NextResponse.json({ message: "Bolão obrigatório" }, { status: 400 });
+
+  const [membership, deadline] = await Promise.all([
+    prisma.bolaoMember.findUnique({
+      where: { bolaoId_userId: { bolaoId, userId: session.user.id } },
+      select: { championPick: true, status: true },
     }),
     getDeadline(),
   ]);
 
+  if (!membership || membership.status !== "ATIVO") {
+    return NextResponse.json({ message: "Você não participa deste bolão" }, { status: 403 });
+  }
+
   const isLocked = deadline ? new Date() >= deadline : false;
 
   return NextResponse.json({
-    championPick: user?.championPick ?? null,
+    championPick: membership.championPick ?? null,
     isLocked,
     deadline: deadline?.toISOString() ?? null,
   });
@@ -42,16 +50,29 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ message: "Prazo encerrado. A competição já começou." }, { status: 403 });
   }
 
-  const { team } = await req.json();
+  const { bolaoId, team } = await req.json();
+  if (!bolaoId || typeof bolaoId !== "string") {
+    return NextResponse.json({ message: "Bolão obrigatório" }, { status: 400 });
+  }
+
   if (!team || typeof team !== "string" || team.trim() === "") {
     return NextResponse.json({ message: "Time inválido." }, { status: 400 });
   }
 
-  const user = await prisma.user.update({
-    where: { id: session.user.id },
+  const membership = await prisma.bolaoMember.findUnique({
+    where: { bolaoId_userId: { bolaoId, userId: session.user.id } },
+    select: { status: true },
+  });
+
+  if (!membership || membership.status !== "ATIVO") {
+    return NextResponse.json({ message: "Você não participa deste bolão" }, { status: 403 });
+  }
+
+  const updated = await prisma.bolaoMember.update({
+    where: { bolaoId_userId: { bolaoId, userId: session.user.id } },
     data: { championPick: team.trim() },
     select: { championPick: true },
   });
 
-  return NextResponse.json({ championPick: user.championPick });
+  return NextResponse.json({ championPick: updated.championPick });
 }

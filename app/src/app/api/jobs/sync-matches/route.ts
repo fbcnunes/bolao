@@ -4,6 +4,15 @@ import { footballData, normalizeTeamName } from "@/lib/football-data";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
+type FootballDataMatch = {
+  homeTeam?: { name?: string | null } | null;
+  awayTeam?: { name?: string | null } | null;
+};
+
+type FootballDataMatchesResponse = {
+  matches?: FootballDataMatch[];
+};
+
 export async function GET(req: Request) {
   if (CRON_SECRET) {
     const auth = req.headers.get("authorization");
@@ -18,8 +27,8 @@ export async function GET(req: Request) {
       footballData.getFinishedMatches(),
     ]);
 
-    const liveMatches: any[] = liveData.matches ?? [];
-    const finishedMatches: any[] = finishedData.matches ?? [];
+    const liveMatches = (liveData as FootballDataMatchesResponse).matches ?? [];
+    const finishedMatches = (finishedData as FootballDataMatchesResponse).matches ?? [];
 
     let updatedCount = 0;
 
@@ -55,10 +64,11 @@ export async function GET(req: Request) {
       finishedCount: finishedMatches.length,
       updatedCount,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("sync-matches error:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json(
-      { message: "Erro ao sincronizar jogos", error: error.message },
+      { message: "Erro ao sincronizar jogos", error: message },
       { status: 500 }
     );
   }

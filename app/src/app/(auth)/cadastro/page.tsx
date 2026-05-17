@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,6 +15,10 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const callbackParam = searchParams.get("callbackUrl");
+  const callbackUrl = callbackParam?.startsWith("/") && !callbackParam.startsWith("//") ? callbackParam : "";
+  const loginHref = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +45,23 @@ export default function RegisterPage() {
         setError(data.message || "Erro ao realizar cadastro.");
       } else {
         setSuccess(data.message);
+        if (callbackUrl) {
+          const signInResult = await signIn("credentials", {
+            redirect: false,
+            email,
+            password,
+          });
+
+          if (signInResult?.error) {
+            setTimeout(() => router.push(loginHref), 1500);
+            return;
+          }
+
+          router.push(callbackUrl);
+          router.refresh();
+          return;
+        }
+
         setTimeout(() => router.push("/login"), 3000);
       }
     } catch {
@@ -52,7 +75,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold mb-3 tracking-tight" style={{ color: "var(--text-primary)" }}>Solicitar Acesso</h1>
+          <h1 className="text-4xl font-bold mb-3 tracking-tight" style={{ color: "var(--text-primary)" }}>Novo Usuário</h1>
           <p style={{ color: "var(--text-secondary)" }}>Crie sua conta para participar do bolão</p>
         </div>
 
@@ -62,7 +85,7 @@ export default function RegisterPage() {
               <svg className="w-12 h-12 mx-auto mb-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="text-lg font-medium mb-2">Cadastro Solicitado!</h3>
+              <h3 className="text-lg font-medium mb-2">Cadastro realizado!</h3>
               <p className="text-sm text-emerald-200/80">{success}</p>
               <p className="text-xs text-emerald-200/60 mt-4">Redirecionando para o login...</p>
             </div>
@@ -94,21 +117,26 @@ export default function RegisterPage() {
                 <input id="confirmPassword" type="password" required className="input-field" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               </div>
 
-              <button type="submit" className="btn-primary w-full flex justify-center items-center mt-6" disabled={loading}>
-                {loading ? (
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : "Solicitar Cadastro"}
-              </button>
+              <div className="grid grid-cols-1 gap-3 mt-6 sm:grid-cols-2">
+                <Link href={loginHref} className="btn-secondary w-full flex justify-center items-center">
+                  Cancelar
+                </Link>
+                <button type="submit" className="btn-primary w-full flex justify-center items-center" disabled={loading}>
+                  {loading ? (
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : "Cadastrar"}
+                </button>
+              </div>
             </form>
           )}
 
           <div className="mt-8 text-center">
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               Já tem uma conta?{' '}
-              <Link href="/login" className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors">
+              <Link href={loginHref} className="text-brand-primary hover:text-brand-primary/80 font-medium transition-colors">
                 Fazer login
               </Link>
             </p>
@@ -116,5 +144,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterContent />
+    </Suspense>
   );
 }

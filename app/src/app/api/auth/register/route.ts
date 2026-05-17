@@ -26,18 +26,18 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.user.create({
+    await prisma.user.create({
       data: {
         name,
         email,
         passwordHash,
-        status: "PENDENTE",
+        status: "ATIVO",
         role: "PARTICIPANTE",
       },
     });
 
     return NextResponse.json(
-      { message: "Cadastro realizado com sucesso! Aguarde aprovação." },
+      { message: "Cadastro realizado com sucesso! Faça login para continuar." },
       { status: 201 }
     );
   } catch (error) {

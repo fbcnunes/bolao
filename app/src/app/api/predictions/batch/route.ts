@@ -11,17 +11,30 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { predictions } = await req.json(); // Array of { matchId, prediction, oddId, oddTimestamp }
+    const { bolaoId, predictions } = await req.json(); // Array of { matchId, prediction, oddId }
+
+    if (!bolaoId || typeof bolaoId !== "string") {
+      return NextResponse.json({ message: "Bolão obrigatório" }, { status: 400 });
+    }
 
     if (!Array.isArray(predictions) || predictions.length === 0) {
       return NextResponse.json({ message: "Nenhum palpite enviado" }, { status: 400 });
+    }
+
+    const membership = await prisma.bolaoMember.findUnique({
+      where: { bolaoId_userId: { bolaoId, userId: session.user.id } },
+      select: { status: true },
+    });
+
+    if (!membership || membership.status !== "ATIVO") {
+      return NextResponse.json({ message: "Você não participa deste bolão" }, { status: 403 });
     }
 
     const savedPredictions = [];
     const errors = [];
 
     for (const item of predictions) {
-      const { matchId, prediction, oddId, oddTimestamp } = item;
+      const { matchId, prediction, oddId } = item;
 
       // Verify if the match exists and hasn't started
       const match = await prisma.match.findUnique({
@@ -41,7 +54,8 @@ export async function POST(req: Request) {
       // Upsert the prediction (oddId may be null for matches without odds)
       const saved = await prisma.prediction.upsert({
         where: {
-          userId_matchId: {
+          bolaoId_userId_matchId: {
+            bolaoId,
             userId: session.user.id,
             matchId: match.id
           }
@@ -52,6 +66,7 @@ export async function POST(req: Request) {
           oddTimestamp: new Date(),
         },
         create: {
+          bolaoId,
           userId: session.user.id,
           matchId: match.id,
           prediction,

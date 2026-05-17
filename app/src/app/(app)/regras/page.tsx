@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import TopBar from "@/components/TopBar";
+import { useBolao } from "@/contexts/BolaoContext";
 
 const phases = [
   { label: "Fase de grupos", points: 10 },
@@ -20,11 +22,43 @@ const tiebreakers = [
 ];
 
 export default function RegrasPage() {
+  const { activeBolao } = useBolao();
+  const [premiacaoRegra, setPremiacaoRegra] = useState("");
+
+  useEffect(() => {
+    if (!activeBolao?.id) {
+      void Promise.resolve().then(() => setPremiacaoRegra(""));
+      return;
+    }
+
+    fetch(`/api/boloes/${activeBolao.id}/settings`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setPremiacaoRegra(data?.premiacaoRegra ?? ""))
+      .catch(() => setPremiacaoRegra(""));
+  }, [activeBolao?.id]);
+
   return (
     <div className="min-h-screen">
       <TopBar title="Regras do Bolão" />
 
       <main className="max-w-lg mx-auto px-4 pt-4 pb-8 space-y-4">
+
+        {/* Premiação do bolão */}
+        {activeBolao && (
+          <section className="rounded-2xl p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+            <h2 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+              <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">$</span>
+              Premiação do Bolão
+            </h2>
+            {premiacaoRegra ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>{premiacaoRegra}</p>
+            ) : (
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                O administrador ainda não informou a regra de premiação deste bolão.
+              </p>
+            )}
+          </section>
+        )}
 
         {/* Pontuação por fase */}
         <section className="rounded-2xl p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
@@ -78,10 +112,32 @@ export default function RegrasPage() {
           </div>
         </section>
 
+        {/* Prazos para palpites */}
+        <section className="rounded-2xl p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+          <h2 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+            <span className="w-6 h-6 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs">4</span>
+            Prazos para Palpites
+          </h2>
+          <div className="space-y-3">
+            <div className="p-3 rounded-xl border border-sky-500/20 bg-sky-500/10">
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Campeão da Copa</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+                O palpite do campeão deve ser registrado antes do início da Copa. Depois que a competição começar, essa escolha fica bloqueada.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl border" style={{ borderColor: "var(--border-base)", background: "var(--bg-card2)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Jogos</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+                Cada palpite de jogo deve ser enviado antes do horário de início da respectiva partida. Após o início do jogo, o palpite daquele jogo não pode mais ser criado ou alterado.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Critérios de desempate */}
         <section className="rounded-2xl p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
           <h2 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>4</span>
+            <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>5</span>
             Critérios de Desempate
           </h2>
           <div className="space-y-2">

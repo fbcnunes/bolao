@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { MatchPhase } from "@prisma/client";
 
 const PHASE_POINTS: Record<string, number> = {
   GRUPOS: 10, PLAYOFFS: 15, OITAVAS: 20, QUARTAS: 30, SEMI: 40, FINAL: 50,
@@ -13,9 +14,9 @@ function toBrtDay(dateTime: Date): string {
   return brt.toISOString().slice(0, 10);
 }
 
-export async function POST(req: Request) {
+export async function POST() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || session.user.role !== "MASTER") {
     return NextResponse.json({ message: "Não autorizado" }, { status: 403 });
   }
 
@@ -40,53 +41,60 @@ export async function POST(req: Request) {
       },
     });
 
-    // 3. Group points by user + BRT day
-    const dayUserPoints: Record<string, Record<string, { points: number; phase: string; round: number }>> = {};
+    // 3. Group points by bolao + user + BRT day
+    const dayBolaoUserPoints: Record<string, Record<string, Record<string, { points: number; phase: string; round: number }>>> = {};
     for (const pred of correctPredictions) {
       const day = toBrtDay(pred.match.dateTime);
       const pts = PHASE_POINTS[pred.match.phase] ?? 10;
-      if (!dayUserPoints[day]) dayUserPoints[day] = {};
-      if (!dayUserPoints[day][pred.userId]) {
-        dayUserPoints[day][pred.userId] = { points: 0, phase: pred.match.phase, round: pred.match.round };
+      if (!dayBolaoUserPoints[day]) dayBolaoUserPoints[day] = {};
+      if (!dayBolaoUserPoints[day][pred.bolaoId]) dayBolaoUserPoints[day][pred.bolaoId] = {};
+      if (!dayBolaoUserPoints[day][pred.bolaoId][pred.userId]) {
+        dayBolaoUserPoints[day][pred.bolaoId][pred.userId] = { points: 0, phase: pred.match.phase, round: pred.match.round };
       }
-      dayUserPoints[day][pred.userId].points += pts;
+      dayBolaoUserPoints[day][pred.bolaoId][pred.userId].points += pts;
     }
 
-    // 4. For each day, find the max and award +10 to winner(s)
+    // 4. For each bolao/day, find the max and award +10 to winner(s)
     let bonusAwarded = 0;
-    for (const [, userMap] of Object.entries(dayUserPoints)) {
-      const entries = Object.entries(userMap);
-      const max = Math.max(...entries.map(([, v]) => v.points));
-      if (max === 0) continue;
+    for (const [, bolaoMap] of Object.entries(dayBolaoUserPoints)) {
+      for (const [bolaoId, userMap] of Object.entries(bolaoMap)) {
+        const entries = Object.entries(userMap);
+        const max = Math.max(...entries.map(([, v]) => v.points));
+        if (max === 0) continue;
 
-      const winners = entries.filter(([, v]) => v.points === max);
-      for (const [userId, { phase, round }] of winners) {
-        const roundRecord = await prisma.round.findFirst({
-          where: { phase: phase as any, number: round },
-        });
-        if (!roundRecord) continue;
+        const winners = entries.filter(([, v]) => v.points === max);
+        for (const [userId, { phase, round }] of winners) {
+          const roundRecord = await prisma.round.findFirst({
+            where: { phase: phase as MatchPhase, number: round },
+          });
+          if (!roundRecord) continue;
 
-        await prisma.score.upsert({
-          where: { userId_roundId: { userId, roundId: roundRecord.id } },
-          update: {
-            bonus: { increment: 10 },
-            accumulatedPoints: { increment: 10 },
-          },
-          create: {
-            userId,
-            roundId: roundRecord.id,
-            roundPoints: 0,
-            bonus: 10,
-            accumulatedPoints: 10,
-          },
-        });
-        bonusAwarded++;
+          await prisma.score.upsert({
+            where: { bolaoId_userId_roundId: { bolaoId, userId, roundId: roundRecord.id } },
+            update: {
+              bonus: { increment: 10 },
+              accumulatedPoints: { increment: 10 },
+            },
+            create: {
+              bolaoId,
+              userId,
+              roundId: roundRecord.id,
+              roundPoints: 0,
+              bonus: 10,
+              accumulatedPoints: 10,
+            },
+          });
+          bonusAwarded++;
+        }
       }
     }
 
     return NextResponse.json({ message: "Bônus recalculados com sucesso", bonusAwarded });
-  } catch (error: any) {
+  } catch (error) {
     console.error("bonus error:", error);
-    return NextResponse.json({ message: "Erro ao calcular bônus", error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { message: "Erro ao calcular bônus", error: error instanceof Error ? error.message : "Erro desconhecido" },
+      { status: 500 }
+    );
   }
 }

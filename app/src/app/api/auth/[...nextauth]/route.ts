@@ -30,12 +30,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Senha incorreta");
         }
 
-        if (user.status === "PENDENTE") {
-          throw new Error("Sua conta ainda não foi aprovada pelo administrador.");
-        }
-
-        if (user.status === "RECUSADO") {
-          throw new Error("Sua solicitação de acesso foi recusada.");
+        if (user.status !== "ATIVO") {
+          throw new Error("Conta não ativa");
         }
 
         return {

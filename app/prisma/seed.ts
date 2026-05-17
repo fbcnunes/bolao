@@ -116,7 +116,7 @@ async function main() {
       name: 'Administrador',
       email: adminEmail,
       passwordHash,
-      role: 'ADMIN',
+      role: 'MASTER',
       status: 'ATIVO',
     },
   });
@@ -162,7 +162,7 @@ async function main() {
     if (result.homeTeam === match.homeTeam) updated++;
     else created++;
   }
-  console.log(`✅ ${matches.length} jogos inseridos/atualizados`);
+  console.log(`✅ ${matches.length} jogos inseridos/atualizados (${created} novos, ${updated} atualizados)`);
   console.log(`\n🏆 Seed concluído! Copa do Mundo 2026 — ${matches.length} jogos (12 grupos, 3 rodadas)`);
 }
 

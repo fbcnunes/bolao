@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import TopBar from "@/components/TopBar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -9,7 +9,7 @@ type User = {
   id: string;
   name: string;
   email: string;
-  status: "PENDENTE" | "ATIVO" | "RECUSADO";
+  status: "PENDENTE" | "ATIVO" | "RECUSADO" | "REMOVIDO";
   role: string;
   createdAt: string;
 };
@@ -29,6 +29,7 @@ const statusConfig = {
   PENDENTE: { label: "Pendente", class: "bg-amber-500/10 text-amber-400 border border-amber-500/20" },
   ATIVO: { label: "Ativo", class: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" },
   RECUSADO: { label: "Recusado", class: "bg-red-500/10 text-red-400 border border-red-500/20" },
+  REMOVIDO: { label: "Removido", class: "bg-slate-500/10 text-slate-300 border border-slate-500/20" },
 };
 
 type Tab = "usuarios" | "jogos";
@@ -55,7 +56,7 @@ export default function AdminPage() {
     setTimeout(() => setMessage(null), 3500);
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/users");
       const data = await res.json();
@@ -65,9 +66,9 @@ export default function AdminPage() {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     setMatchesLoading(true);
     try {
       const res = await fetch("/api/admin/matches");
@@ -78,10 +79,17 @@ export default function AdminPage() {
     } finally {
       setMatchesLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchUsers(); }, []);
-  useEffect(() => { if (tab === "jogos" && matches.length === 0) fetchMatches(); }, [tab]);
+  useEffect(() => {
+    void Promise.resolve().then(fetchUsers);
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    if (tab === "jogos" && matches.length === 0) {
+      void Promise.resolve().then(fetchMatches);
+    }
+  }, [fetchMatches, matches.length, tab]);
 
   const handleUserAction = async (userId: string, action: "approve" | "reject" | "reactivate") => {
     setActionLoading(userId);

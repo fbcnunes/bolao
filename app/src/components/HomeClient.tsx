@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ChampionPicker from "@/components/ChampionPicker";
+import { useBolao } from "@/contexts/BolaoContext";
 
 type Odd = {
   id: string;
@@ -36,6 +37,11 @@ type Match = {
 const RESULT_OPTIONS: ("CASA" | "EMPATE" | "FORA")[] = ["CASA", "EMPATE", "FORA"];
 const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
 const BTN_LABELS: Record<"CASA" | "EMPATE" | "FORA", string> = { CASA: "1", EMPATE: "X", FORA: "2" };
+const PHASE_ORDER = ["GRUPOS", "PLAYOFFS", "OITAVAS", "QUARTAS", "SEMI", "FINAL"];
+const PHASE_LABELS: Record<string, string> = {
+  GRUPOS: "Rodada", PLAYOFFS: "16 avos", OITAVAS: "Oitavas",
+  QUARTAS: "Quartas", SEMI: "Semifinal", FINAL: "Final",
+};
 
 // ─── Match row ────────────────────────────────────────────────────────────────
 
@@ -252,6 +258,7 @@ function Skeleton() {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function HomeClient() {
+  const { activeBolao } = useBolao();
   const [matches, setMatches] = useState<Match[]>([]);
   const [pending, setPending] = useState<Record<string, { prediction: "CASA" | "EMPATE" | "FORA"; oddId: string | null }>>({});
   const [loading, setLoading] = useState(true);
@@ -266,8 +273,10 @@ export default function HomeClient() {
   const [showFilters, setShowFilters] = useState(false);
 
   const fetchMatches = useCallback(async () => {
+    if (!activeBolao) return;
+
     try {
-      const res = await fetch(`/api/matches`);
+      const res = await fetch(`/api/matches?bolaoId=${activeBolao.id}`);
       const data = await res.json();
       setMatches(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -275,9 +284,11 @@ export default function HomeClient() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeBolao]);
 
-  useEffect(() => { fetchMatches(); }, [fetchMatches]);
+  useEffect(() => {
+    void Promise.resolve().then(fetchMatches);
+  }, [fetchMatches]);
 
   const handleSelect = (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => {
     setPending((prev) => ({ ...prev, [matchId]: { prediction, oddId } }));
@@ -297,7 +308,7 @@ export default function HomeClient() {
       const res = await fetch("/api/predictions/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ predictions }),
+        body: JSON.stringify({ bolaoId: activeBolao?.id, predictions }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -323,12 +334,6 @@ export default function HomeClient() {
   };
 
   const hasActiveFilters = groupFilter !== null || roundFilter !== null || countrySearch.trim() !== "" || dateFilter !== null;
-
-  const PHASE_ORDER = ["GRUPOS", "PLAYOFFS", "OITAVAS", "QUARTAS", "SEMI", "FINAL"];
-  const PHASE_LABELS: Record<string, string> = {
-    GRUPOS: "Rodada", PLAYOFFS: "16 avos", OITAVAS: "Oitavas",
-    QUARTAS: "Quartas", SEMI: "Semifinal", FINAL: "Final",
-  };
 
   const availableRounds = useMemo(() => {
     const map = new Map<string, { phase: string; round: number; label: string }>();
@@ -414,7 +419,7 @@ export default function HomeClient() {
   return (
     <>
       {/* Champion picker and tabs have their own px-4 via page layout */}
-      {allTeams.length > 0 && <ChampionPicker teams={allTeams} />}
+      {activeBolao && allTeams.length > 0 && <ChampionPicker bolaoId={activeBolao.id} teams={allTeams} />}
 
       {/* Status tabs */}
       <div className="flex gap-2 mb-3">

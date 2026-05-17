@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || session.user.role !== "MASTER") {
     return NextResponse.json({ message: "Não autorizado" }, { status: 403 });
   }
 
@@ -20,6 +20,18 @@ export async function GET() {
       result: true,
       phase: true,
       round: true,
+      odds: {
+        orderBy: { capturedAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          oddHome: true,
+          oddDraw: true,
+          oddAway: true,
+          favorite: true,
+          capturedAt: true,
+        },
+      },
     },
   });
 
@@ -28,7 +40,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || session.user.role !== "MASTER") {
     return NextResponse.json({ message: "Não autorizado" }, { status: 403 });
   }
 
@@ -77,14 +89,15 @@ export async function PATCH(req: Request) {
 
         if (round) {
           await prisma.score.upsert({
-            where: { userId_roundId: { userId: prediction.userId, roundId: round.id } },
-            update: {
-              roundPoints: { increment: pointsEarned },
-              accumulatedPoints: { increment: pointsEarned },
-            },
-            create: {
-              userId: prediction.userId,
-              roundId: round.id,
+              where: { bolaoId_userId_roundId: { bolaoId: prediction.bolaoId, userId: prediction.userId, roundId: round.id } },
+              update: {
+                roundPoints: { increment: pointsEarned },
+                accumulatedPoints: { increment: pointsEarned },
+              },
+              create: {
+                bolaoId: prediction.bolaoId,
+                userId: prediction.userId,
+                roundId: round.id,
               roundPoints: pointsEarned,
               accumulatedPoints: pointsEarned,
             },
