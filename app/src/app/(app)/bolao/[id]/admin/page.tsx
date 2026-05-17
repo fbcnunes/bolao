@@ -54,6 +54,7 @@ export default function BolaoAdminPage() {
 
   // Busca o inviteCode do bolão via lista de bolões do usuário
   useEffect(() => {
+    void Promise.resolve().then(() => setInviteCode(null));
     fetch("/api/boloes")
       .then((r) => r.json())
       .then((data: BolaoInviteSummary[]) => {
@@ -68,6 +69,7 @@ export default function BolaoAdminPage() {
   }, [fetchMembers]);
 
   useEffect(() => {
+    void Promise.resolve().then(() => setPremiacaoRegra(""));
     fetch(`/api/boloes/${bolaoId}/settings`)
       .then((r) => r.json())
       .then((data) => setPremiacaoRegra(data?.premiacaoRegra ?? ""))

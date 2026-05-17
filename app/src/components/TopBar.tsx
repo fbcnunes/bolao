@@ -2,8 +2,9 @@
 
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useBolao } from "@/contexts/BolaoContext";
+import { BolaoSummary, useBolao } from "@/contexts/BolaoContext";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -39,9 +40,12 @@ function ThemeToggle() {
 function BolaoSelector() {
   const { boloes, activeBolao, setActiveBolao } = useBolao();
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
   const ativos = boloes.filter((b) => b.status === "ATIVO");
+  const isBolaoAdminRoute = /^\/bolao\/[^/]+\/admin$/.test(pathname);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -52,6 +56,19 @@ function BolaoSelector() {
   }, []);
 
   if (ativos.length === 0) return null;
+
+  const handleSelectBolao = (bolao: BolaoSummary) => {
+    setActiveBolao(bolao);
+    setOpen(false);
+
+    if (!isBolaoAdminRoute) return;
+
+    if (bolao.memberRole === "ADMIN") {
+      router.replace(`/bolao/${bolao.id}/admin`);
+    } else {
+      router.replace("/");
+    }
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -71,7 +88,7 @@ function BolaoSelector() {
           {ativos.map((b) => (
             <button
               key={b.id}
-              onClick={() => { setActiveBolao(b); setOpen(false); }}
+              onClick={() => handleSelectBolao(b)}
               className={`w-full text-left px-4 py-3 text-sm font-medium transition-all cursor-pointer hover:opacity-80 flex items-center justify-between gap-2 ${
                 activeBolao?.id === b.id ? "text-brand-primary" : ""
               }`}
