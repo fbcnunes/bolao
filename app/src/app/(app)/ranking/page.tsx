@@ -59,7 +59,7 @@ export default function RankingPage() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title={activeBolao ? `Ranking · ${activeBolao.nome}` : "Ranking"} />
+      <TopBar title="Ranking" />
 
       <main className="max-w-lg mx-auto px-4 pt-4">
         {!activeBolao ? (

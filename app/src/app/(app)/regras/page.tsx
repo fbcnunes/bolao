@@ -39,10 +39,9 @@ export default function RegrasPage() {
 
   return (
     <div className="min-h-screen">
-      <TopBar title="Regras do Bolão" />
+      <TopBar title="Regras" />
 
       <main className="max-w-lg mx-auto px-4 pt-4 pb-8 space-y-4">
-
         {/* Premiação do bolão */}
         {activeBolao && (
           <section className="rounded-2xl p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>

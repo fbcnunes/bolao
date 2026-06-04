@@ -37,7 +37,7 @@ function ThemeToggle() {
   );
 }
 
-function BolaoSelector() {
+function BolaoContextBar() {
   const { boloes, activeBolao, setActiveBolao } = useBolao();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -71,39 +71,53 @@ function BolaoSelector() {
   };
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all active:scale-95 border max-w-[140px]"
-        style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)", color: "var(--text-primary)" }}
-      >
-        <span className="truncate">{activeBolao?.nome ?? "Selecionar"}</span>
-        <svg className={`w-3 h-3 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-52 rounded-xl shadow-xl border z-50 overflow-hidden" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
-          {ativos.map((b) => (
-            <button
-              key={b.id}
-              onClick={() => handleSelectBolao(b)}
-              className={`w-full text-left px-4 py-3 text-sm font-medium transition-all cursor-pointer hover:opacity-80 flex items-center justify-between gap-2 ${
-                activeBolao?.id === b.id ? "text-brand-primary" : ""
-              }`}
-              style={activeBolao?.id !== b.id ? { color: "var(--text-primary)" } : {}}
-            >
-              <span className="truncate">{b.nome}</span>
-              {activeBolao?.id === b.id && (
-                <svg className="w-4 h-4 text-brand-primary flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clipRule="evenodd" />
-                </svg>
-              )}
-            </button>
-          ))}
+    <div className="border-t" style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)" }}>
+      <div ref={ref} className="relative max-w-lg mx-auto px-4 py-2">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-muted)" }}>Bolão atual</p>
+            <p className="mt-0.5 truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              {activeBolao ? `Você está no bolão ${activeBolao.nome}` : "Selecione um bolão para continuar"}
+            </p>
+          </div>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="h-9 rounded-xl border px-3 text-xs font-semibold cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-base)", color: "var(--color-brand-primary)" }}
+            aria-label="Trocar bolão atual"
+          >
+            Trocar
+            <svg className={`w-3 h-3 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
-      )}
+
+        {open && (
+          <div className="absolute top-full right-4 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-xl shadow-xl border z-50 overflow-hidden" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+            <div className="px-4 py-2 border-b" style={{ borderColor: "var(--border-base)" }}>
+              <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-muted)" }}>Trocar bolão</p>
+            </div>
+            {ativos.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => handleSelectBolao(b)}
+                className={`w-full text-left px-4 py-3 text-sm font-medium transition-all cursor-pointer hover:opacity-80 flex items-center justify-between gap-2 ${
+                  activeBolao?.id === b.id ? "text-brand-primary" : ""
+                }`}
+                style={activeBolao?.id !== b.id ? { color: "var(--text-primary)" } : {}}
+              >
+                <span className="truncate">{b.nome}</span>
+                {activeBolao?.id === b.id && (
+                  <svg className="w-4 h-4 text-brand-primary flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path fillRule="evenodd" d="M19.916 4.626a.75.75 0 01.208 1.04l-9 13.5a.75.75 0 01-1.154.114l-6-6a.75.75 0 011.06-1.06l5.353 5.353 8.493-12.739a.75.75 0 011.04-.208z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -122,7 +136,6 @@ export default function TopBar({ title }: { title: string }) {
           <h1 className="text-lg font-bold tracking-tight truncate" style={{ color: "var(--text-primary)" }}>{title}</h1>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isMaster && <BolaoSelector />}
           <ThemeToggle />
           <div
             className="h-8 min-w-0 max-w-[124px] rounded-full pl-1 pr-2 border flex items-center gap-1.5"
@@ -140,6 +153,7 @@ export default function TopBar({ title }: { title: string }) {
           </div>
         </div>
       </div>
+      {!isMaster && <BolaoContextBar />}
     </header>
   );
 }
