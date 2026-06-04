@@ -79,6 +79,7 @@ model Bolao {
   inviteCode      String        @unique @default(cuid())
   status          BolaoStatus   @default(PENDENTE)
   premiacaoRegra  String?       @db.Text
+  entradaDireta   Boolean       @default(false)
   createdById     String
   createdBy       User          @relation(fields: [createdById], references: [id])
   members         BolaoMember[]

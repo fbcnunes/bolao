@@ -42,6 +42,7 @@ export default function BolaoAdminPage() {
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [premiacaoRegra, setPremiacaoRegra] = useState("");
+  const [entradaDireta, setEntradaDireta] = useState(false);
   const [savingPremiacao, setSavingPremiacao] = useState(false);
   const [stats, setStats] = useState<BolaoStats | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -89,9 +90,13 @@ export default function BolaoAdminPage() {
 
   useEffect(() => {
     void Promise.resolve().then(() => setPremiacaoRegra(""));
+    void Promise.resolve().then(() => setEntradaDireta(false));
     fetch(`/api/boloes/${bolaoId}/settings`)
       .then((r) => r.json())
-      .then((data) => setPremiacaoRegra(data?.premiacaoRegra ?? ""))
+      .then((data) => {
+        setPremiacaoRegra(data?.premiacaoRegra ?? "");
+        setEntradaDireta(Boolean(data?.entradaDireta));
+      })
       .catch(() => {});
   }, [bolaoId]);
 
@@ -143,11 +148,12 @@ export default function BolaoAdminPage() {
       const res = await fetch(`/api/boloes/${bolaoId}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ premiacaoRegra }),
+        body: JSON.stringify({ premiacaoRegra, entradaDireta }),
       });
       const data = await res.json();
       if (res.ok) {
         setPremiacaoRegra(data.bolao?.premiacaoRegra ?? "");
+        setEntradaDireta(Boolean(data.bolao?.entradaDireta));
         showMsg("success", data.message);
       } else {
         showMsg("error", data.message);
@@ -209,8 +215,29 @@ export default function BolaoAdminPage() {
           </div>
         )}
 
-        {/* Premiação */}
+        {/* Configurações */}
         <div className="mb-5 p-4 rounded-2xl border space-y-3" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+          <div className="flex items-start justify-between gap-4 pb-3 border-b" style={{ borderColor: "var(--border-base)" }}>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Entrada de participantes</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Quando ativa, novos participantes entram direto no bolão pelo convite, sem ficar pendentes para aprovação.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={entradaDireta}
+              aria-label="Permitir entrada direta no bolão"
+              onClick={() => setEntradaDireta((value) => !value)}
+              className={`relative mt-1 h-7 w-12 flex-shrink-0 rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary/60 ${entradaDireta ? "bg-brand-primary" : ""}`}
+              style={!entradaDireta ? { background: "var(--bg-card2)" } : {}}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${entradaDireta ? "translate-x-6" : "translate-x-1"}`}
+              />
+            </button>
+          </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Regra de premiação</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -233,7 +260,7 @@ export default function BolaoAdminPage() {
               disabled={savingPremiacao}
               className="px-4 py-2 rounded-xl text-xs font-semibold bg-brand-primary text-white cursor-pointer active:scale-95 transition-all disabled:opacity-50"
             >
-              {savingPremiacao ? "Salvando..." : "Salvar premiação"}
+              {savingPremiacao ? "Salvando..." : "Salvar configurações"}
             </button>
           </div>
         </div>

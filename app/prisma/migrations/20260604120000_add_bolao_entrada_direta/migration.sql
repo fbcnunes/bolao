@@ -1,0 +1,1 @@
+ALTER TABLE `Bolao` ADD COLUMN `entradaDireta` BOOLEAN NOT NULL DEFAULT false;

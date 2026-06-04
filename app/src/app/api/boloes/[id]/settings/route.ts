@@ -7,6 +7,7 @@ type BolaoSettings = {
   id: string;
   nome: string;
   premiacaoRegra: string | null;
+  entradaDireta: boolean;
 };
 
 async function getMembership(bolaoId: string, userId: string) {
@@ -33,7 +34,7 @@ export async function GET(
   }
 
   const [bolao] = await prisma.$queryRaw<BolaoSettings[]>`
-    SELECT id, nome, premiacaoRegra
+    SELECT id, nome, premiacaoRegra, entradaDireta
     FROM Bolao
     WHERE id = ${bolaoId}
     LIMIT 1
@@ -61,9 +62,12 @@ export async function PATCH(
     }
   }
 
-  const { premiacaoRegra } = await req.json();
+  const { premiacaoRegra, entradaDireta } = await req.json();
   if (premiacaoRegra !== null && premiacaoRegra !== undefined && typeof premiacaoRegra !== "string") {
     return NextResponse.json({ message: "Regra de premiação inválida" }, { status: 400 });
+  }
+  if (entradaDireta !== undefined && typeof entradaDireta !== "boolean") {
+    return NextResponse.json({ message: "Configuração de entrada direta inválida" }, { status: 400 });
   }
 
   const text = premiacaoRegra?.trim() || null;
@@ -73,12 +77,13 @@ export async function PATCH(
 
   await prisma.$executeRaw`
     UPDATE Bolao
-    SET premiacaoRegra = ${text}
+    SET premiacaoRegra = ${text},
+        entradaDireta = COALESCE(${entradaDireta ?? null}, entradaDireta)
     WHERE id = ${bolaoId}
   `;
 
   const [bolao] = await prisma.$queryRaw<BolaoSettings[]>`
-    SELECT id, nome, premiacaoRegra
+    SELECT id, nome, premiacaoRegra, entradaDireta
     FROM Bolao
     WHERE id = ${bolaoId}
     LIMIT 1
@@ -86,5 +91,5 @@ export async function PATCH(
 
   if (!bolao) return NextResponse.json({ message: "Bolão não encontrado" }, { status: 404 });
 
-  return NextResponse.json({ message: "Regra de premiação salva.", bolao });
+  return NextResponse.json({ message: "Configurações salvas.", bolao });
 }

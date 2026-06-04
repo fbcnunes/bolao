@@ -11,6 +11,7 @@ type BolaoPreview = {
   id: string;
   nome: string;
   createdAt: string;
+  entradaDireta: boolean;
   memberCount: number;
   members: { name: string; role: "ADMIN" | "PARTICIPANTE" }[];
 };
@@ -26,6 +27,7 @@ export default function EntrarPage() {
   const [loadingPreview, setLoadingPreview] = useState(true);
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [joinStatus, setJoinStatus] = useState<"ATIVO" | "PENDENTE" | null>(null);
   const [error, setError] = useState("");
   const [alreadyMember, setAlreadyMember] = useState(false);
   const autoJoinStarted = useRef(false);
@@ -60,6 +62,7 @@ export default function EntrarPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        setJoinStatus(data.status ?? "PENDENTE");
         setJoined(true);
       } else {
         setError(data.message);
@@ -114,6 +117,8 @@ export default function EntrarPage() {
   }
 
   if (joined) {
+    const joinedDirectly = joinStatus === "ATIVO";
+
     return (
       <div className="min-h-screen flex flex-col justify-center items-center p-4">
         <div className="w-full max-w-md text-center">
@@ -121,11 +126,17 @@ export default function EntrarPage() {
             <svg className="w-14 h-14 mx-auto mb-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>Solicitação enviada!</h2>
+            <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>
+              {joinedDirectly ? "Entrada confirmada!" : "Solicitação enviada!"}
+            </h2>
             <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-              Sua entrada em <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{bolao?.nome}</span> está aguardando aprovação do administrador.
+              {joinedDirectly ? (
+                <>Você já pode participar de <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{bolao?.nome}</span>.</>
+              ) : (
+                <>Sua entrada em <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{bolao?.nome}</span> está aguardando aprovação do administrador.</>
+              )}
             </p>
-            <button onClick={() => router.push("/")} className="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold">
+            <button onClick={joinedDirectly ? handleGoToBolao : () => router.push("/")} className="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold">
               Ir para os palpites
             </button>
           </div>
@@ -206,7 +217,7 @@ export default function EntrarPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : null}
-            {joining ? "Enviando..." : alreadyMember ? "Ir para o Bolão" : "Solicitar entrada no bolão"}
+            {joining ? "Enviando..." : alreadyMember ? "Ir para o Bolão" : bolao?.entradaDireta ? "Entrar no bolão" : "Solicitar entrada no bolão"}
           </button>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -227,7 +238,7 @@ export default function EntrarPage() {
 
         {!session && (
           <p className="text-center text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-            Depois do login ou cadastro, sua solicitação será enviada automaticamente.
+            Depois do login ou cadastro, {bolao?.entradaDireta ? "sua entrada será confirmada automaticamente." : "sua solicitação será enviada automaticamente."}
           </p>
         )}
       </div>

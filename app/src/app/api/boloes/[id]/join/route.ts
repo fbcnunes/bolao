@@ -3,6 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 
+type BolaoJoin = {
+  id: string;
+  nome: string;
+  status: "PENDENTE" | "ATIVO" | "RECUSADO";
+  entradaDireta: boolean;
+};
+
 // Entra num bolão via inviteCode ou id
 export async function POST(
   req: Request
@@ -15,9 +22,12 @@ export async function POST(
     return NextResponse.json({ message: "Código de convite é obrigatório" }, { status: 400 });
   }
 
-  const bolao = await prisma.bolao.findUnique({
-    where: { inviteCode: inviteCode.trim() },
-  });
+  const [bolao] = await prisma.$queryRaw<BolaoJoin[]>`
+    SELECT id, nome, status, entradaDireta
+    FROM Bolao
+    WHERE inviteCode = ${inviteCode.trim()}
+    LIMIT 1
+  `;
 
   if (!bolao) {
     return NextResponse.json({ message: "Código inválido ou bolão não encontrado" }, { status: 404 });
@@ -30,6 +40,10 @@ export async function POST(
   const existing = await prisma.bolaoMember.findUnique({
     where: { bolaoId_userId: { bolaoId: bolao.id, userId: session.user.id } },
   });
+  const memberStatus = bolao.entradaDireta ? "ATIVO" : "PENDENTE";
+  const successMessage = bolao.entradaDireta
+    ? `Você entrou no bolão "${bolao.nome}"!`
+    : `Solicitação enviada para "${bolao.nome}"! Aguarde aprovação do admin.`;
 
   if (existing) {
     if (existing.status === "ATIVO") {
@@ -44,10 +58,10 @@ export async function POST(
     if (existing.status === "REMOVIDO") {
       await prisma.bolaoMember.update({
         where: { bolaoId_userId: { bolaoId: bolao.id, userId: session.user.id } },
-        data: { role: "PARTICIPANTE", status: "PENDENTE" },
+        data: { role: "PARTICIPANTE", status: memberStatus },
       });
       return NextResponse.json(
-        { message: `Nova solicitação enviada para "${bolao.nome}"! Aguarde aprovação do admin.`, bolaoId: bolao.id },
+        { message: bolao.entradaDireta ? `Você voltou para o bolão "${bolao.nome}"!` : successMessage, bolaoId: bolao.id, status: memberStatus },
         { status: 201 }
       );
     }
@@ -58,12 +72,12 @@ export async function POST(
       bolaoId: bolao.id,
       userId: session.user.id,
       role: "PARTICIPANTE",
-      status: "PENDENTE",
+      status: memberStatus,
     },
   });
 
   return NextResponse.json(
-    { message: `Solicitação enviada para "${bolao.nome}"! Aguarde aprovação do admin.`, bolaoId: bolao.id },
+    { message: successMessage, bolaoId: bolao.id, status: memberStatus },
     { status: 201 }
   );
 }
