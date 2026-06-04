@@ -17,6 +17,13 @@ type BolaoInviteSummary = {
   inviteCode: string;
 };
 
+type BolaoStats = {
+  role: "ADMIN" | "PARTICIPANTE";
+  total: number;
+  ativos: number;
+  pendentes: number;
+};
+
 const statusConfig = {
   PENDENTE: { label: "Pendente", class: "bg-amber-500/10 text-amber-400 border border-amber-500/20" },
   ATIVO: { label: "Ativo", class: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" },
@@ -36,6 +43,7 @@ export default function BolaoAdminPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [premiacaoRegra, setPremiacaoRegra] = useState("");
   const [savingPremiacao, setSavingPremiacao] = useState(false);
+  const [stats, setStats] = useState<BolaoStats | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const showMsg = (type: "success" | "error", text: string) => {
@@ -50,6 +58,13 @@ export default function BolaoAdminPage() {
       .then((d) => setMembers(Array.isArray(d) ? d : []))
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, [bolaoId]);
+
+  const fetchStats = useCallback(() => {
+    fetch(`/api/boloes/${bolaoId}/stats`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setStats(data))
+      .catch(() => setStats(null));
   }, [bolaoId]);
 
   // Busca o inviteCode do bolão via lista de bolões do usuário
@@ -67,6 +82,10 @@ export default function BolaoAdminPage() {
   useEffect(() => {
     void Promise.resolve().then(fetchMembers);
   }, [fetchMembers]);
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchStats);
+  }, [fetchStats]);
 
   useEffect(() => {
     void Promise.resolve().then(() => setPremiacaoRegra(""));
@@ -89,7 +108,7 @@ export default function BolaoAdminPage() {
         body: JSON.stringify({ action }),
       });
       const data = await res.json();
-      if (res.ok) { showMsg("success", data.message); fetchMembers(); }
+      if (res.ok) { showMsg("success", data.message); fetchMembers(); fetchStats(); }
       else showMsg("error", data.message);
     } catch {
       showMsg("error", "Erro ao realizar ação.");
@@ -140,8 +159,14 @@ export default function BolaoAdminPage() {
     }
   };
 
-  const pendingCount = members.filter((m) => m.status === "PENDENTE").length;
+  const pendingCount = stats?.pendentes ?? members.filter((m) => m.status === "PENDENTE").length;
   const filtered = members.filter((m) => memberFilter === "TODOS" ? true : m.status === memberFilter);
+  const isBolaoAdmin = stats?.role === "ADMIN";
+  const statCards = [
+    ...(isBolaoAdmin ? [{ label: "Total no bolão", value: stats?.total ?? members.length, color: "" }] : []),
+    { label: "Ativos no bolão", value: stats?.ativos ?? members.filter((m) => m.status === "ATIVO").length, color: "text-emerald-400" },
+    { label: "Pendentes no bolão", value: pendingCount, color: "text-amber-400" },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -217,12 +242,8 @@ export default function BolaoAdminPage() {
         <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
           Participantes deste bolão
         </p>
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[
-            { label: "Total no bolão", value: members.length, color: "" },
-            { label: "Ativos no bolão", value: members.filter((m) => m.status === "ATIVO").length, color: "text-emerald-400" },
-            { label: "Pendentes no bolão", value: pendingCount, color: "text-amber-400" },
-          ].map((stat) => (
+        <div className={`grid ${statCards.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-3 mb-4`}>
+          {statCards.map((stat) => (
             <div key={stat.label} className="rounded-xl p-3 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
               <p className={`text-2xl font-bold ${stat.color}`} style={!stat.color ? { color: "var(--text-primary)" } : {}}>{stat.value}</p>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>{stat.label}</p>
