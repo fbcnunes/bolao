@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import TopBar from "@/components/TopBar";
 import { useParams } from "next/navigation";
+import { useBolao } from "@/contexts/BolaoContext";
 
 type Member = {
   bolaoId: string;
@@ -33,6 +34,7 @@ const statusConfig = {
 
 export default function BolaoAdminPage() {
   const { id: bolaoId } = useParams<{ id: string }>();
+  const { boloes, activeBolao, setActiveBolao } = useBolao();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -103,6 +105,12 @@ export default function BolaoAdminPage() {
   useEffect(() => {
     void Promise.resolve().then(() => setOrigin(window.location.origin));
   }, []);
+
+  useEffect(() => {
+    if (activeBolao?.id === bolaoId) return;
+    const routeBolao = boloes.find((b) => b.id === bolaoId && b.status === "ATIVO");
+    if (routeBolao) setActiveBolao(routeBolao);
+  }, [activeBolao?.id, boloes, bolaoId, setActiveBolao]);
 
   const handleAction = async (userId: string, action: "approve" | "reject" | "remove" | "reactivate" | "makeAdmin") => {
     setActionLoading(userId);

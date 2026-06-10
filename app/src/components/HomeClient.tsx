@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ChampionPicker from "@/components/ChampionPicker";
@@ -450,6 +451,22 @@ export default function HomeClient() {
           )}
         </button>
       </div>
+
+      <Link
+        href="/palpites-jogo"
+        className="mb-4 flex items-center justify-between gap-3 rounded-2xl border p-3 transition-all active:scale-[0.99]"
+        style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Ver apostas por jogo</p>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>Compare como os participantes apostaram nos jogos já iniciados.</p>
+        </div>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-brand-primary/15 text-brand-primary">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </Link>
 
       {/* Filter panel */}
       {showFilters && (

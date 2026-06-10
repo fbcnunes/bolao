@@ -61,6 +61,11 @@ export default function MeusBolaoPage() {
     router.push("/");
   };
 
+  const handleManage = (b: BolaoSummary) => {
+    setActiveBolao(b);
+    router.push(`/bolao/${b.id}/admin`);
+  };
+
   const handleLeaveBolao = async (b: BolaoSummary) => {
     if (!window.confirm(`Sair do bolão "${b.nome}"? Seus palpites ficam preservados, mas você sai do ranking enquanto estiver removido.`)) return;
 
@@ -192,7 +197,7 @@ export default function MeusBolaoPage() {
                           <div className="flex items-center gap-2">
                             {b.memberRole === "ADMIN" && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); router.push(`/bolao/${b.id}/admin`); }}
+                                onClick={(e) => { e.stopPropagation(); handleManage(b); }}
                                 className="text-xs px-3 py-1 rounded-xl cursor-pointer transition-all hover:opacity-70"
                                 style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}
                               >

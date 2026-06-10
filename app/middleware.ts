@@ -29,6 +29,9 @@ export default withAuth(
     return NextResponse.next();
   },
   {
+    pages: {
+      signIn: "/login",
+    },
     callbacks: {
       authorized: ({ token, req }) => {
         // Rotas públicas que não precisam de autenticação
@@ -51,8 +54,8 @@ export const config = {
      * - api/auth (NextAuth API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * - favicon.ico and public assets
      */
-    "/((?!api/auth/session|api/auth/providers|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/auth/session|api/auth/providers|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
