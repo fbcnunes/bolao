@@ -33,24 +33,22 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Este bolão não está aceitando novos membros" }, { status: 400 });
   }
 
-  const members = await prisma.bolaoMember.findMany({
-    where: { bolaoId: bolao.id, status: "ATIVO" },
-    select: {
-      role: true,
-      user: { select: { name: true } },
-    },
-    orderBy: { user: { name: "asc" } },
-  });
+  const [memberCount, admin] = await Promise.all([
+    prisma.bolaoMember.count({
+      where: { bolaoId: bolao.id, status: "ATIVO" },
+    }),
+    prisma.bolaoMember.findFirst({
+      where: { bolaoId: bolao.id, status: "ATIVO", role: "ADMIN" },
+      select: { user: { select: { name: true } } },
+    }),
+  ]);
 
   return NextResponse.json({
     id: bolao.id,
     nome: bolao.nome,
     createdAt: bolao.createdAt,
     entradaDireta: Boolean(bolao.entradaDireta),
-    memberCount: members.length,
-    members: members.map((m) => ({
-      name: m.user.name,
-      role: m.role,
-    })),
+    memberCount,
+    adminName: admin?.user.name ?? null,
   });
 }

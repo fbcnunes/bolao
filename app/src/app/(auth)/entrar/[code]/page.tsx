@@ -13,7 +13,7 @@ type BolaoPreview = {
   createdAt: string;
   entradaDireta: boolean;
   memberCount: number;
-  members: { name: string; role: "ADMIN" | "PARTICIPANTE" }[];
+  adminName: string | null;
 };
 
 export default function EntrarPage() {
@@ -145,8 +145,6 @@ export default function EntrarPage() {
     );
   }
 
-  const admin = bolao?.members.find((m) => m.role === "ADMIN");
-
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
@@ -162,39 +160,18 @@ export default function EntrarPage() {
         </div>
 
         <div className="glass-card rounded-2xl p-6 mb-4">
-          {/* Resumo */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between">
             <div className="text-center flex-1">
               <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{bolao?.memberCount}</p>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>participante{bolao?.memberCount !== 1 ? "s" : ""}</p>
             </div>
-            {admin && (
+            {bolao?.adminName && (
               <div className="text-center flex-1 border-l" style={{ borderColor: "var(--border-base)" }}>
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{admin.name}</p>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{bolao.adminName}</p>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>administrador</p>
               </div>
             )}
           </div>
-
-          {/* Lista de membros */}
-          {bolao && bolao.members.length > 0 && (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Integrantes</p>
-              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                {bolao.members.map((m, i) => (
-                  <div key={i} className="flex items-center gap-3 py-2 border-b last:border-0" style={{ borderColor: "var(--border-base)" }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg-card2)" }}>
-                      <span className="text-sm font-bold" style={{ color: "var(--text-secondary)" }}>{m.name[0].toUpperCase()}</span>
-                    </div>
-                    <span className="text-sm font-medium flex-1" style={{ color: "var(--text-primary)" }}>{m.name}</span>
-                    {m.role === "ADMIN" && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20">admin</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </div>
 
         {/* Erro */}

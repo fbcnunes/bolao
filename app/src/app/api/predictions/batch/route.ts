@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { PredictionResult } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -30,58 +31,59 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Você não participa deste bolão" }, { status: 403 });
     }
 
-    const savedPredictions = [];
-    const errors = [];
+    const now = new Date();
+    const matchIds = predictions.map((p: { matchId: string }) => p.matchId);
+
+    const matches = await prisma.match.findMany({
+      where: { id: { in: matchIds } },
+      select: { id: true, status: true, dateTime: true },
+    });
+    const matchMap = new Map(matches.map((m) => [m.id, m]));
+
+    const valid: { matchId: string; prediction: PredictionResult; oddId: string | null }[] = [];
+    const errors: { matchId: string; message: string }[] = [];
+
+    const VALID_PREDICTIONS = new Set<PredictionResult>(["CASA", "EMPATE", "FORA"]);
 
     for (const item of predictions) {
       const { matchId, prediction, oddId } = item;
-
-      // Verify if the match exists and hasn't started
-      const match = await prisma.match.findUnique({
-        where: { id: matchId }
-      });
+      const match = matchMap.get(matchId);
 
       if (!match) {
         errors.push({ matchId, message: "Jogo não encontrado" });
         continue;
       }
-
-      if (match.status !== "AGENDADO" || new Date() >= match.dateTime) {
+      if (!VALID_PREDICTIONS.has(prediction)) {
+        errors.push({ matchId, message: "Palpite inválido" });
+        continue;
+      }
+      if (match.status !== "AGENDADO" || now >= match.dateTime) {
         errors.push({ matchId, message: "Este jogo já começou ou está encerrado" });
         continue;
       }
 
-      // Upsert the prediction (oddId may be null for matches without odds)
-      const saved = await prisma.prediction.upsert({
-        where: {
-          bolaoId_userId_matchId: {
-            bolaoId,
-            userId: session.user.id,
-            matchId: match.id
-          }
-        },
-        update: {
-          prediction,
-          oddId: oddId ?? null,
-          oddTimestamp: new Date(),
-        },
-        create: {
-          bolaoId,
-          userId: session.user.id,
-          matchId: match.id,
-          prediction,
-          oddId: oddId ?? null,
-          oddTimestamp: new Date(),
-        }
-      });
-
-      savedPredictions.push(saved);
+      valid.push({ matchId, prediction: prediction as PredictionResult, oddId: oddId ?? null });
     }
 
-    return NextResponse.json({ 
-      message: "Palpites salvos com sucesso", 
+    if (valid.length === 0) {
+      return NextResponse.json({ message: "Nenhum palpite válido para salvar", saved: 0, errors });
+    }
+
+    const userId = session.user.id;
+    const savedPredictions = await prisma.$transaction(
+      valid.map(({ matchId, prediction, oddId }) =>
+        prisma.prediction.upsert({
+          where: { bolaoId_userId_matchId: { bolaoId, userId, matchId } },
+          update: { prediction, oddId, oddTimestamp: now },
+          create: { bolaoId, userId, matchId, prediction, oddId, oddTimestamp: now },
+        })
+      )
+    );
+
+    return NextResponse.json({
+      message: "Palpites salvos com sucesso",
       saved: savedPredictions.length,
-      errors 
+      errors,
     });
 
   } catch (error) {

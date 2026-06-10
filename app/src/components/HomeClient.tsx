@@ -48,20 +48,27 @@ const PHASE_LABELS: Record<string, string> = {
 
 function MatchRow({
   match,
-  selectedPrediction,
-  onSelect,
+  onSave,
   isLast,
 }: {
   match: Match;
-  selectedPrediction?: "CASA" | "EMPATE" | "FORA";
-  onSelect: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => void;
+  onSave: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => Promise<void>;
   isLast: boolean;
 }) {
   const latestOdd = match.odds[0];
   const existingPrediction = match.predictions[0];
   const isLocked = match.status !== "AGENDADO" || new Date() >= new Date(match.dateTime);
-  const currentPick = selectedPrediction || existingPrediction?.prediction;
   const isCorrect = existingPrediction?.correct;
+
+  const [saving, setSaving] = useState<"CASA" | "EMPATE" | "FORA" | null>(null);
+  const [savedPick, setSavedPick] = useState<"CASA" | "EMPATE" | "FORA" | undefined>(existingPrediction?.prediction);
+  const [flashError, setFlashError] = useState(false);
+
+  useEffect(() => {
+    setSavedPick(existingPrediction?.prediction);
+  }, [existingPrediction?.prediction]);
+
+  const currentPick = savedPick;
 
   const oddValues: Record<"CASA" | "EMPATE" | "FORA", number | undefined> = {
     CASA: latestOdd?.oddHome,
@@ -72,9 +79,26 @@ function MatchRow({
   const accentColor =
     isCorrect === true ? "#10B981" : isCorrect === false ? "rgba(239,68,68,0.6)" : "transparent";
 
+  const handleClick = async (option: "CASA" | "EMPATE" | "FORA") => {
+    if (isLocked || saving) return;
+    setSaving(option);
+    try {
+      await onSave(match.id, option, latestOdd?.id ?? null);
+      setSavedPick(option);
+    } catch {
+      setFlashError(true);
+      setTimeout(() => setFlashError(false), 2000);
+    } finally {
+      setSaving(null);
+    }
+  };
+
   return (
     <>
-      <div className="flex items-center gap-2 py-2.5 border-l-2 pl-3" style={{ borderColor: accentColor }}>
+      <div
+        className="flex items-center gap-2 py-2.5 border-l-2 pl-3"
+        style={{ borderColor: flashError ? "rgba(239,68,68,0.6)" : accentColor }}
+      >
         {/* Grupo */}
         <span className="text-[10px] font-bold uppercase w-5 flex-shrink-0 text-center" style={{ color: "var(--text-muted)" }}>
           {match.group}
@@ -119,6 +143,7 @@ function MatchRow({
             const isWinner = match.status === "ENCERRADO" && match.result === option;
             const isWrong = isLocked && isSelected && match.result && match.result !== option;
             const isFavorite = latestOdd?.favorite === option;
+            const isSavingThis = saving === option;
 
             let cls = "relative flex flex-col items-center justify-center w-10 h-10 rounded-lg text-[11px] font-bold transition-all duration-150 flex-shrink-0";
             if (isWrong) cls += " bg-red-500/15 text-red-400 ring-1 ring-red-500/30";
@@ -126,26 +151,35 @@ function MatchRow({
               cls += " bg-brand-primary text-white shadow-sm shadow-brand-primary/40";
               if (isWinner && !isSelected) cls += " ring-2 ring-brand-primary/40";
             }
-            cls += isLocked ? " cursor-not-allowed opacity-70" : " cursor-pointer active:scale-90";
+            cls += isLocked ? " cursor-not-allowed opacity-70" : saving ? " cursor-wait" : " cursor-pointer active:scale-90";
 
             return (
               <button
                 key={option}
-                onClick={() => !isLocked && onSelect(match.id, option, latestOdd?.id ?? null)}
-                disabled={isLocked}
+                onClick={() => handleClick(option)}
+                disabled={isLocked || !!saving}
                 className={cls}
                 style={!isWrong && !(isSelected || isWinner) ? { background: "var(--bg-card)", color: "var(--text-secondary)" } : {}}
               >
                 {isFavorite && !isLocked && (
                   <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-brand-secondary rounded-full" />
                 )}
-                <span className="leading-none">{BTN_LABELS[option]}</span>
-                <span
-                  className={`text-[9px] leading-none mt-0.5 ${isSelected && !isWrong ? "text-white/70" : ""}`}
-                  style={!(isSelected && !isWrong) ? { color: "var(--text-muted)" } : {}}
-                >
-                  {oddValues[option] ? oddValues[option]!.toFixed(2) : "—"}
-                </span>
+                {isSavingThis ? (
+                  <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <>
+                    <span className="leading-none">{BTN_LABELS[option]}</span>
+                    <span
+                      className={`text-[9px] leading-none mt-0.5 ${isSelected && !isWrong ? "text-white/70" : ""}`}
+                      style={!(isSelected && !isWrong) ? { color: "var(--text-muted)" } : {}}
+                    >
+                      {oddValues[option] ? oddValues[option]!.toFixed(2) : "—"}
+                    </span>
+                  </>
+                )}
               </button>
             );
           })}
@@ -162,16 +196,14 @@ function MatchRow({
 function DaySection({
   date,
   matches,
-  pending,
-  onSelect,
+  onSave,
 }: {
   date: string;
   matches: Match[];
-  pending: Record<string, { prediction: "CASA" | "EMPATE" | "FORA"; oddId: string | null }>;
-  onSelect: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => void;
+  onSave: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => Promise<void>;
 }) {
   const dayLabel = format(new Date(date + "T12:00:00"), "EEE, dd 'de' MMM", { locale: ptBR });
-  const pickedCount = matches.filter((m) => pending[m.id] || m.predictions[0]).length;
+  const pickedCount = matches.filter((m) => m.predictions[0]).length;
   const total = matches.length;
   const allDone = pickedCount === total;
 
@@ -186,18 +218,14 @@ function DaySection({
           {dayLabel}
         </span>
         <div className="flex items-center gap-1.5">
-          {/* Dot indicators */}
           <div className="flex gap-0.5">
-            {matches.map((m) => {
-              const picked = pending[m.id] || m.predictions[0];
-              return (
-                <span
-                  key={m.id}
-                  className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
-                  style={{ background: picked ? (allDone ? "#10B981" : "#F59E0B") : "var(--border-base)" }}
-                />
-              );
-            })}
+            {matches.map((m) => (
+              <span
+                key={m.id}
+                className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
+                style={{ background: m.predictions[0] ? (allDone ? "#10B981" : "#F59E0B") : "var(--border-base)" }}
+              />
+            ))}
           </div>
           <span className="text-[10px] font-semibold tabular-nums" style={{ color: allDone ? "#10B981" : "var(--text-muted)" }}>
             {pickedCount}/{total}
@@ -211,8 +239,7 @@ function DaySection({
           <MatchRow
             key={match.id}
             match={match}
-            selectedPrediction={pending[match.id]?.prediction}
-            onSelect={onSelect}
+            onSave={onSave}
             isLast={idx === matches.length - 1}
           />
         ))}
@@ -261,10 +288,8 @@ function Skeleton() {
 export default function HomeClient() {
   const { activeBolao } = useBolao();
   const [matches, setMatches] = useState<Match[]>([]);
-  const [pending, setPending] = useState<Record<string, { prediction: "CASA" | "EMPATE" | "FORA"; oddId: string | null }>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [autoFillError, setAutoFillError] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<"todos" | "agendados">("agendados");
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
@@ -291,41 +316,24 @@ export default function HomeClient() {
     void Promise.resolve().then(fetchMatches);
   }, [fetchMatches]);
 
-  const handleSelect = (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => {
-    setPending((prev) => ({ ...prev, [matchId]: { prediction, oddId } }));
-  };
-
-  const handleSaveAll = async () => {
-    if (Object.keys(pending).length === 0) {
-      setMessage({ type: "error", text: "Nenhum palpite novo para salvar." });
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-    setSaving(true);
-    try {
-      const predictions = Object.entries(pending).map(([matchId, { prediction, oddId }]) => ({
-        matchId, prediction, oddId,
-      }));
-      const res = await fetch("/api/predictions/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bolaoId: activeBolao?.id, predictions }),
-      });
+  const handleSave = useCallback(async (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => {
+    const res = await fetch("/api/predictions/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bolaoId: activeBolao?.id, predictions: [{ matchId, prediction, oddId }] }),
+    });
+    if (!res.ok) {
       const data = await res.json();
-      if (res.ok) {
-        setMessage({ type: "success", text: `${data.saved} palpite(s) salvo(s) com sucesso!` });
-        setPending({});
-        fetchMatches();
-      } else {
-        setMessage({ type: "error", text: data.message || "Erro ao salvar." });
-      }
-    } catch {
-      setMessage({ type: "error", text: "Erro ao salvar palpites." });
-    } finally {
-      setSaving(false);
-      setTimeout(() => setMessage(null), 4000);
+      throw new Error(data.message || "Erro ao salvar.");
     }
-  };
+    setMatches((prev) =>
+      prev.map((m) =>
+        m.id !== matchId
+          ? m
+          : { ...m, predictions: [{ prediction, correct: null }] }
+      )
+    );
+  }, [activeBolao]);
 
   const clearFilters = () => {
     setGroupFilter(null);
@@ -379,23 +387,43 @@ export default function HomeClient() {
     const now = new Date();
     return filteredMatches.filter((m) => {
       const isLocked = m.status !== "AGENDADO" || now >= new Date(m.dateTime);
-      return !isLocked && !m.predictions[0] && !pending[m.id] && m.odds[0];
+      return !isLocked && !m.predictions[0] && m.odds[0];
     }).length;
-  }, [filteredMatches, pending]);
+  }, [filteredMatches]);
 
-  const handleAutoFill = () => {
+  const handleAutoFill = useCallback(async () => {
     const now = new Date();
-    setPending((prev) => {
-      const next = { ...prev };
-      filteredMatches.forEach((m) => {
-        const isLocked = m.status !== "AGENDADO" || now >= new Date(m.dateTime);
-        if (!isLocked && !m.predictions[0] && !prev[m.id] && m.odds[0]) {
-          next[m.id] = { prediction: m.odds[0].favorite, oddId: m.odds[0].id };
-        }
-      });
-      return next;
+    const toFill = filteredMatches.filter((m) => {
+      const isLocked = m.status !== "AGENDADO" || now >= new Date(m.dateTime);
+      return !isLocked && !m.predictions[0] && m.odds[0];
     });
-  };
+    if (toFill.length === 0) return;
+
+    const res = await fetch("/api/predictions/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bolaoId: activeBolao?.id,
+        predictions: toFill.map((m) => ({
+          matchId: m.id,
+          prediction: m.odds[0].favorite,
+          oddId: m.odds[0].id,
+        })),
+      }),
+    });
+    if (res.ok) {
+      setMatches((prev) =>
+        prev.map((m) => {
+          const fill = toFill.find((f) => f.id === m.id);
+          if (!fill) return m;
+          return { ...m, predictions: [{ prediction: fill.odds[0].favorite, correct: null }] };
+        })
+      );
+    } else {
+      setAutoFillError(true);
+      setTimeout(() => setAutoFillError(false), 4000);
+    }
+  }, [activeBolao, filteredMatches]);
 
   const matchesByDay = useMemo(() => {
     const acc: Record<string, Match[]> = {};
@@ -408,8 +436,6 @@ export default function HomeClient() {
     return acc;
   }, [filteredMatches]);
   const sortedDays = Object.keys(matchesByDay).sort();
-
-  const pendingCount = Object.keys(pending).length;
 
   const allTeams = useMemo(() => {
     const set = new Set<string>();
@@ -451,6 +477,12 @@ export default function HomeClient() {
           )}
         </button>
       </div>
+
+      {autoFillError && (
+        <div className="mb-3 p-3 rounded-xl text-sm font-medium text-center bg-red-500/15 border border-red-500/30 text-red-400">
+          Erro ao salvar palpites automáticos. Nenhum palpite foi registrado.
+        </div>
+      )}
 
       <Link
         href="/palpites-jogo"
@@ -587,16 +619,6 @@ export default function HomeClient() {
         </div>
       )}
 
-      {message && (
-        <div className={`mb-3 p-3 rounded-xl text-sm font-medium text-center ${
-          message.type === "success"
-            ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-            : "bg-red-500/15 border border-red-500/30 text-red-400"
-        }`}>
-          {message.text}
-        </div>
-      )}
-
       {/* List — negative mx to break out of page padding */}
       <div className="-mx-4">
         {loading ? (
@@ -624,41 +646,11 @@ export default function HomeClient() {
               key={day}
               date={day}
               matches={matchesByDay[day]}
-              pending={pending}
-              onSelect={handleSelect}
+              onSave={handleSave}
             />
           ))
         )}
       </div>
-
-      {pendingCount > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 px-4 z-40">
-          <div className="max-w-lg mx-auto">
-            <button
-              onClick={handleSaveAll}
-              disabled={saving}
-              className="bg-brand-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-brand-primary/90 transition-all duration-200 shadow-2xl shadow-brand-primary/40 active:scale-95 w-full flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <>
-                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Salvar {pendingCount} palpite{pendingCount > 1 ? "s" : ""}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

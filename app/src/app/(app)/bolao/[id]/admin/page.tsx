@@ -130,9 +130,26 @@ export default function BolaoAdminPage() {
     }
   };
 
+  const copyToClipboard = (text: string): Promise<void> => {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    // Fallback para HTTP (execCommand)
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+    return Promise.resolve();
+  };
+
   const copyCode = () => {
     if (!inviteCode) return;
-    navigator.clipboard.writeText(inviteCode).then(() => {
+    copyToClipboard(inviteCode).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -144,7 +161,7 @@ export default function BolaoAdminPage() {
 
   const copyInviteLink = () => {
     if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(() => {
+    copyToClipboard(inviteLink).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     });

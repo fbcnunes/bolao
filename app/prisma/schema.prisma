@@ -98,6 +98,9 @@ model BolaoMember {
   championPick String?
 
   @@id([bolaoId, userId])
+  @@index([bolaoId, status])
+  @@index([bolaoId, status, role])
+  @@index([userId, status])
 }
 
 model Match {
@@ -113,6 +116,10 @@ model Match {
   status      MatchStatus       @default(AGENDADO)
   odds        Odd[]
   predictions Prediction[]
+
+  @@index([status])
+  @@index([dateTime])
+  @@index([homeTeam, awayTeam, status])
 }
 
 model Odd {
@@ -125,6 +132,8 @@ model Odd {
   favorite    PredictionResult
   capturedAt  DateTime         @default(now())
   predictions Prediction[]
+
+  @@index([matchId, capturedAt])
 }
 
 model Prediction {
@@ -144,6 +153,9 @@ model Prediction {
   updatedAt    DateTime         @updatedAt
 
   @@unique([bolaoId, userId, matchId])
+  @@index([bolaoId, userId])
+  @@index([bolaoId, matchId])
+  @@index([bolaoId, correct])
 }
 
 model Round {
@@ -167,4 +179,6 @@ model Score {
   accumulatedPoints Float  @default(0)
 
   @@unique([bolaoId, userId, roundId])
+  @@index([bolaoId, roundId])
+  @@index([bolaoId, userId])
 }
