@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BolaoSummary, useBolao } from "@/contexts/BolaoContext";
@@ -137,10 +138,12 @@ export default function TopBar({ title }: { title: string }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <ThemeToggle />
-          <div
-            className="h-8 min-w-0 max-w-[124px] rounded-full pl-1 pr-2 border flex items-center gap-1.5"
+          <Link
+            href="/perfil"
+            className="h-8 min-w-0 max-w-[124px] rounded-full pl-1 pr-2 border flex items-center gap-1.5 transition-all hover:opacity-80 active:scale-95 cursor-pointer"
             style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)" }}
             title={identity}
+            aria-label="Editar perfil"
           >
             <div className="w-6 h-6 rounded-full bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center flex-shrink-0">
               <span className="text-brand-primary text-xs font-bold">
@@ -150,7 +153,7 @@ export default function TopBar({ title }: { title: string }) {
             <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
               {identity}
             </span>
-          </div>
+          </Link>
         </div>
       </div>
       {!isMaster && <BolaoContextBar />}

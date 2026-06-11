@@ -45,7 +45,11 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    await sendPasswordChangedEmail(resetToken.user.email, resetToken.user.name);
+    try {
+      await sendPasswordChangedEmail(resetToken.user.email, resetToken.user.name);
+    } catch (emailError) {
+      console.error("password-changed notification error:", emailError);
+    }
 
     return NextResponse.json({ message: "Senha redefinida com sucesso!" });
   } catch (error) {

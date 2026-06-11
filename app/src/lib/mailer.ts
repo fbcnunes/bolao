@@ -65,3 +65,39 @@ export async function sendEmailChangedEmail(to: string, name: string, newEmail: 
     `,
   });
 }
+
+export async function sendEmailChangeNoticeEmail(
+  to: string,
+  name: string,
+  oldEmail: string,
+  newEmail: string,
+  recipient: "old" | "new"
+) {
+  const isOldRecipient = recipient === "old";
+
+  await transporter.sendMail({
+    from: `"Bolão 2026" <${process.env.SMTP_USER}>`,
+    to,
+    subject: "E-mail da conta atualizado - Bolão 2026",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0f172a;color:#e2e8f0;border-radius:16px;">
+        <h2 style="margin:0 0 8px;color:#10b981;">Bolão 2026</h2>
+        <p style="margin:0 0 24px;color:#94a3b8;">Olá, <strong style="color:#e2e8f0;">${name}</strong>!</p>
+        <p style="margin:0 0 12px;">
+          ${isOldRecipient
+            ? "O administrador atualizou o e-mail da sua conta. Este endereço não será mais usado para login."
+            : "O administrador atualizou o e-mail da sua conta. A partir de agora, use este endereço para login."}
+        </p>
+        <div style="margin:0 0 24px;padding:14px 16px;background:#1e293b;border-radius:12px;">
+          <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">E-mail anterior</p>
+          <p style="margin:0 0 14px;font-weight:700;color:#e2e8f0;">${oldEmail}</p>
+          <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">Novo e-mail</p>
+          <p style="margin:0;font-weight:700;color:#10b981;">${newEmail}</p>
+        </div>
+        <p style="margin:0 0 24px;font-size:13px;color:#64748b;">Se você não reconhece esta alteração, entre em contato com o administrador imediatamente.</p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #1e293b;">
+        <p style="margin:0;font-size:12px;color:#475569;">Bolão Copa do Mundo 2026</p>
+      </div>
+    `,
+  });
+}

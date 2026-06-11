@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { footballData, normalizeTeamName } from "@/lib/football-data";
+import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -57,6 +58,8 @@ export async function GET(req: Request) {
       });
       updatedCount += updated.count;
     }
+
+    await markSyncCompleted(SYNC_KEYS.matches);
 
     return NextResponse.json({
       message: "Status dos jogos atualizado",

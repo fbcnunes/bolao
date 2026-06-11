@@ -58,6 +58,11 @@ type MasterMatch = {
   }>;
 };
 
+type SyncStatus = {
+  odds: string | null;
+  matches: string | null;
+};
+
 type RankingEntry = {
   user: { id: string; name: string };
   totalPoints: number;
@@ -93,6 +98,11 @@ const statusConfig = {
   REMOVIDO: { label: "Removido", class: "bg-slate-500/10 text-slate-300 border border-slate-500/20" },
   EXCLUIDO: { label: "Excluído", class: "bg-slate-500/10 text-slate-300 border border-slate-500/20" },
 };
+
+function formatSyncDate(value: string | null) {
+  if (!value) return "Ainda não sincronizado";
+  return format(new Date(value), "dd/MM/yyyy HH:mm", { locale: ptBR });
+}
 
 function SyncButton({
   loading,
@@ -152,6 +162,7 @@ export default function MasterPage() {
   const [saving, setSaving] = useState(false);
   const [calculatingBonus, setCalculatingBonus] = useState(false);
   const [syncingOdds, setSyncingOdds] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ odds: null, matches: null });
 
   // Mensagens
   const [messages, setMessages] = useState<Message[]>([]);
@@ -163,6 +174,7 @@ export default function MasterPage() {
   // Editar email
   const [editEmailUserId, setEditEmailUserId] = useState<string | null>(null);
   const [editEmailValue, setEditEmailValue] = useState("");
+  const [confirmEmailChange, setConfirmEmailChange] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
 
   const showMsg = (type: "success" | "error", text: string) => {
@@ -208,6 +220,21 @@ export default function MasterPage() {
       .finally(() => setMatchesLoading(false));
   }, []);
 
+  const fetchSyncStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/sync-status");
+      const data = await res.json();
+      if (res.ok) {
+        setSyncStatus({
+          odds: typeof data.odds === "string" ? data.odds : null,
+          matches: typeof data.matches === "string" ? data.matches : null,
+        });
+      }
+    } catch {
+      /* noop */
+    }
+  }, []);
+
   const fetchMessages = useCallback(async () => {
     setMessagesLoading(true);
     try {
@@ -232,10 +259,13 @@ export default function MasterPage() {
     if (tab === "jogos" && matches.length === 0) {
       void Promise.resolve().then(fetchMatches);
     }
-    if (tab === "mensagens" && messages.length === 0) {
-      void fetchMessages();
+    if (tab === "jogos") {
+      void Promise.resolve().then(fetchSyncStatus);
     }
-  }, [tab, matches.length, fetchMatches, messages.length, fetchMessages]);
+    if (tab === "mensagens" && messages.length === 0) {
+      void Promise.resolve().then(fetchMessages);
+    }
+  }, [tab, matches.length, fetchMatches, fetchSyncStatus, messages.length, fetchMessages]);
 
   const handleBolaoAction = async (bolaoId: string, action: "approve" | "reject") => {
     setActionLoading(bolaoId);
@@ -310,6 +340,7 @@ export default function MasterPage() {
       if (res.ok) {
         showMsg("success", `Odds atualizadas! ${data.syncedCount} jogo(s) sincronizado(s), ${data.skippedCount} ignorado(s).`);
         fetchMatches();
+        void fetchSyncStatus();
       } else {
         showMsg("error", data.message || "Erro ao atualizar odds.");
       }
@@ -397,7 +428,7 @@ export default function MasterPage() {
   };
 
   const handleSaveEmail = async () => {
-    if (!editEmailUserId || !editEmailValue.trim()) return;
+    if (!editEmailUserId || !editEmailValue.trim() || !confirmEmailChange) return;
     setSavingEmail(true);
     try {
       const res = await fetch(`/api/master/users/${editEmailUserId}/email`, {
@@ -410,6 +441,7 @@ export default function MasterPage() {
         showMsg("success", data.message);
         setEditEmailUserId(null);
         setEditEmailValue("");
+        setConfirmEmailChange(false);
         void fetchUsers();
       } else {
         showMsg("error", data.message);
@@ -439,6 +471,7 @@ export default function MasterPage() {
   const filteredUsers = users.filter((u) => userFilter === "TODOS" ? true : u.status === userFilter);
   const filteredMatches = matches.filter((m) => matchFilter === "TODOS" ? true : m.status === matchFilter);
   const dashboardBolao = boloesAtivos.find((b) => b.id === dashboardBolaoId) ?? null;
+  const editEmailUser = users.find((u) => u.id === editEmailUserId) ?? null;
   const unreadMessages = messages.filter((m) => m.status === "ENVIADA").length;
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "dashboard",  label: "Dashboard" },
@@ -532,19 +565,37 @@ export default function MasterPage() {
             <div className="rounded-2xl p-5 w-full max-w-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
               <h3 className="font-bold mb-1 text-center" style={{ color: "var(--text-primary)" }}>Corrigir E-mail</h3>
               <p className="text-xs text-center mb-4" style={{ color: "var(--text-muted)" }}>
-                {users.find((u) => u.id === editEmailUserId)?.name}
+                {editEmailUser?.name}
               </p>
               <input
                 type="email"
                 className="input-field mb-4"
                 placeholder="novo@email.com"
                 value={editEmailValue}
-                onChange={(e) => setEditEmailValue(e.target.value)}
+                onChange={(e) => { setEditEmailValue(e.target.value); setConfirmEmailChange(false); }}
                 disabled={savingEmail}
               />
+              <div className="mb-4 rounded-xl border p-3 text-xs" style={{ background: "var(--bg-card2)", borderColor: "var(--border-base)", color: "var(--text-secondary)" }}>
+                <p className="font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Confirme antes de salvar</p>
+                <p className="break-all">De: <span style={{ color: "var(--text-muted)" }}>{editEmailUser?.email}</span></p>
+                <p className="break-all mt-1">Para: <span className="font-semibold text-brand-primary">{editEmailValue.trim().toLowerCase() || "novo e-mail"}</span></p>
+                <p className="mt-2" style={{ color: "var(--text-muted)" }}>
+                  O login passa a usar o novo e-mail imediatamente. O usuário receberá aviso no endereço antigo e no novo.
+                </p>
+              </div>
+              <label className="mb-4 flex items-start gap-2 text-xs cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-brand-primary"
+                  checked={confirmEmailChange}
+                  onChange={(e) => setConfirmEmailChange(e.target.checked)}
+                  disabled={savingEmail}
+                />
+                <span>Confirmo que revisei o e-mail antigo e o novo e quero aplicar esta correção.</span>
+              </label>
               <div className="flex gap-2">
-                <button onClick={() => { setEditEmailUserId(null); setEditEmailValue(""); }} className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>Cancelar</button>
-                <button onClick={() => void handleSaveEmail()} disabled={savingEmail || !editEmailValue.trim()}
+                <button onClick={() => { setEditEmailUserId(null); setEditEmailValue(""); setConfirmEmailChange(false); }} className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>Cancelar</button>
+                <button onClick={() => void handleSaveEmail()} disabled={savingEmail || !editEmailValue.trim() || !confirmEmailChange}
                   className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-brand-primary text-white cursor-pointer disabled:opacity-50">
                   {savingEmail ? "Salvando..." : "Salvar"}
                 </button>
@@ -949,7 +1000,7 @@ export default function MasterPage() {
                       )}
                       <div className="mt-2">
                         <button
-                          onClick={() => { setEditEmailUserId(user.id); setEditEmailValue(user.email); }}
+                          onClick={() => { setEditEmailUserId(user.id); setEditEmailValue(user.email); setConfirmEmailChange(false); }}
                           className="w-full py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer hover:opacity-80"
                           style={{ background: "var(--bg-card2)", color: "var(--text-muted)" }}
                         >
@@ -982,6 +1033,21 @@ export default function MasterPage() {
                 </svg>
                 {calculatingBonus ? "Calculando..." : "Recalcular bônus"}
               </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+              <div className="rounded-xl border px-3 py-2.5" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Última sync de odds</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  {formatSyncDate(syncStatus.odds)}
+                </p>
+              </div>
+              <div className="rounded-xl border px-3 py-2.5" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Última sync de partidas</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  {formatSyncDate(syncStatus.matches)}
+                </p>
+              </div>
             </div>
 
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">

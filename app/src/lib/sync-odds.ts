@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { oddsApi, normalizeOddsTeamName } from "@/lib/odds-api";
+import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 
 export async function syncWorldCupOdds() {
   const events = await oddsApi.getWorldCupOdds();
@@ -66,6 +67,8 @@ export async function syncWorldCupOdds() {
 
     syncedCount++;
   }
+
+  await markSyncCompleted(SYNC_KEYS.odds);
 
   return { syncedCount, skippedCount };
 }

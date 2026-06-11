@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
-import { sendEmailChangedEmail } from "@/lib/mailer";
+import { sendEmailChangeNoticeEmail } from "@/lib/mailer";
 
 export async function PATCH(
   req: Request,
@@ -19,7 +19,7 @@ export async function PATCH(
   try {
     const { email } = await req.json();
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return NextResponse.json({ message: "E-mail inválido." }, { status: 400 });
     }
 
@@ -38,15 +38,30 @@ export async function PATCH(
       return NextResponse.json({ message: "Usuário não encontrado." }, { status: 404 });
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: { email: normalizedEmail },
-      select: { id: true, name: true, email: true },
+    if (user.email.toLowerCase() === normalizedEmail) {
+      return NextResponse.json({ message: "Este já é o e-mail atual do usuário." }, { status: 400 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id },
+        data: { email: normalizedEmail },
+        select: { id: true, name: true, email: true },
+      });
+
+      await tx.$executeRaw`
+        INSERT INTO UserEmailChangeAudit (id, userId, changedById, oldEmail, newEmail, createdAt)
+        VALUES (UUID(), ${id}, ${session.user.id}, ${user.email}, ${normalizedEmail}, NOW(3))
+      `;
+
+      return updatedUser;
     });
 
-    // Notify old email and new email
     try {
-      await sendEmailChangedEmail(normalizedEmail, updated.name, normalizedEmail);
+      await Promise.allSettled([
+        sendEmailChangeNoticeEmail(user.email, updated.name, user.email, normalizedEmail, "old"),
+        sendEmailChangeNoticeEmail(normalizedEmail, updated.name, user.email, normalizedEmail, "new"),
+      ]);
     } catch {
       // Non-fatal: email notification failure shouldn't block the update
     }

@@ -75,6 +75,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   messagesSent        Message[]            @relation("MessagesSent")
   messagesReceived    Message[]            @relation("MessagesReceived")
+  emailChanges         UserEmailChangeAudit[] @relation("EmailChangesForUser")
+  emailChangesMade     UserEmailChangeAudit[] @relation("EmailChangesByUser")
 }
 
 model Bolao {
@@ -201,6 +203,20 @@ model PasswordResetToken {
   @@index([userId])
 }
 
+model UserEmailChangeAudit {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("EmailChangesForUser", fields: [userId], references: [id])
+  changedById String
+  changedBy   User     @relation("EmailChangesByUser", fields: [changedById], references: [id])
+  oldEmail    String
+  newEmail    String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([changedById, createdAt])
+}
+
 enum MessageStatus {
   ENVIADA
   LIDA
@@ -226,4 +242,11 @@ model Message {
   @@index([toUserId, status])
   @@index([fromUserId])
   @@index([bolaoId])
+}
+
+model SyncStatus {
+  key       String   @id
+  syncedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

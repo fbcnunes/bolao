@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { footballData, normalizeTeamName } from "@/lib/football-data";
+import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 
 type FootballDataMatch = {
   homeTeam?: { name?: string };
@@ -103,6 +104,8 @@ export async function GET(req: Request) {
 
       processedCount++;
     }
+
+    await markSyncCompleted(SYNC_KEYS.matches);
 
     return NextResponse.json({
       message: "Resultados sincronizados",
