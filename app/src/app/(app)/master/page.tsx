@@ -64,7 +64,27 @@ type RankingEntry = {
   correctPredictions: number;
 };
 
-type Tab = "dashboard" | "boloes" | "usuarios" | "jogos";
+type Tab = "dashboard" | "boloes" | "usuarios" | "jogos" | "mensagens";
+
+type MessageStatus = "ENVIADA" | "LIDA" | "RESPONDIDA";
+
+type Message = {
+  id: string;
+  subject: string;
+  body: string;
+  status: MessageStatus;
+  createdAt: string;
+  fromUser: { id: string; name: string; email: string };
+  toUser: { id: string; name: string; email: string } | null;
+  bolao: { id: string; nome: string } | null;
+  replies: Array<{
+    id: string;
+    body: string;
+    createdAt: string;
+    fromUser: { id: string; name: string };
+  }>;
+  _count: { replies: number };
+};
 
 const statusConfig = {
   PENDENTE: { label: "Pendente", class: "bg-amber-500/10 text-amber-400 border border-amber-500/20" },
@@ -129,6 +149,18 @@ export default function MasterPage() {
   const [calculatingBonus, setCalculatingBonus] = useState(false);
   const [syncingOdds, setSyncingOdds] = useState(false);
 
+  // Mensagens
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+
+  // Editar email
+  const [editEmailUserId, setEditEmailUserId] = useState<string | null>(null);
+  const [editEmailValue, setEditEmailValue] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+
   const showMsg = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
@@ -172,6 +204,19 @@ export default function MasterPage() {
       .finally(() => setMatchesLoading(false));
   }, []);
 
+  const fetchMessages = useCallback(async () => {
+    setMessagesLoading(true);
+    try {
+      const res = await fetch("/api/messages");
+      const d = await res.json();
+      setMessages(Array.isArray(d) ? d : []);
+    } catch {
+      /* noop */
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void Promise.resolve().then(() => {
       fetchBoloes();
@@ -183,7 +228,10 @@ export default function MasterPage() {
     if (tab === "jogos" && matches.length === 0) {
       void Promise.resolve().then(fetchMatches);
     }
-  }, [tab, matches.length, fetchMatches]);
+    if (tab === "mensagens" && messages.length === 0) {
+      void fetchMessages();
+    }
+  }, [tab, matches.length, fetchMatches, messages.length, fetchMessages]);
 
   const handleBolaoAction = async (bolaoId: string, action: "approve" | "reject") => {
     setActionLoading(bolaoId);
@@ -291,6 +339,65 @@ export default function MasterPage() {
     }
   };
 
+  const handleOpenMessage = async (msg: Message) => {
+    setSelectedMessage(msg);
+    setReplyBody("");
+    if (msg.status === "ENVIADA") {
+      await fetch(`/api/messages/${msg.id}/read`, { method: "POST" });
+      setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, status: "LIDA" } : m));
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyBody.trim()) return;
+    setSendingReply(true);
+    try {
+      const res = await fetch(`/api/messages/${selectedMessage.id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: replyBody }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg("success", "Resposta enviada!");
+        setReplyBody("");
+        setSelectedMessage(null);
+        await fetchMessages();
+      } else {
+        showMsg("error", data.message);
+      }
+    } catch {
+      showMsg("error", "Erro ao enviar resposta.");
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleSaveEmail = async () => {
+    if (!editEmailUserId || !editEmailValue.trim()) return;
+    setSavingEmail(true);
+    try {
+      const res = await fetch(`/api/master/users/${editEmailUserId}/email`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: editEmailValue }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg("success", data.message);
+        setEditEmailUserId(null);
+        setEditEmailValue("");
+        void fetchUsers();
+      } else {
+        showMsg("error", data.message);
+      }
+    } catch {
+      showMsg("error", "Erro ao atualizar e-mail.");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   const handleSyncBoloes = async () => {
     const ok = await fetchBoloes();
     showMsg(ok ? "success" : "error", ok ? "Bolões sincronizados com a base." : "Erro ao sincronizar bolões.");
@@ -309,11 +416,13 @@ export default function MasterPage() {
   const filteredUsers = users.filter((u) => userFilter === "TODOS" ? true : u.status === userFilter);
   const filteredMatches = matches.filter((m) => matchFilter === "TODOS" ? true : m.status === matchFilter);
   const dashboardBolao = boloesAtivos.find((b) => b.id === dashboardBolaoId) ?? null;
+  const unreadMessages = messages.filter((m) => m.status === "ENVIADA").length;
   const tabs: { key: Tab; label: string; badge?: number }[] = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "boloes",    label: "Bolões",   badge: pendingBoloes },
-    { key: "usuarios",  label: "Usuários", badge: pendingUsers },
-    { key: "jogos",     label: "Jogos" },
+    { key: "dashboard",  label: "Dashboard" },
+    { key: "boloes",     label: "Bolões",    badge: pendingBoloes },
+    { key: "usuarios",   label: "Usuários",  badge: pendingUsers },
+    { key: "jogos",      label: "Jogos" },
+    { key: "mensagens",  label: "Mensagens", badge: unreadMessages },
   ];
 
   return (
@@ -323,12 +432,12 @@ export default function MasterPage() {
       <main className="max-w-lg mx-auto px-4 pt-4 pb-4">
 
         {/* Tabs */}
-        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-1.5 mb-4">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${tab === t.key ? "bg-brand-primary text-white" : ""}`}
+              className={`flex flex-1 min-w-[88px] items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${tab === t.key ? "bg-brand-primary text-white" : ""}`}
               style={tab !== t.key ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}
             >
               {t.label}
@@ -389,6 +498,88 @@ export default function MasterPage() {
                   className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-brand-primary text-white cursor-pointer disabled:opacity-50">
                   {saving ? "Salvando..." : "Salvar"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal editar email */}
+        {editEmailUserId && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center p-4 pb-24">
+            <div className="rounded-2xl p-5 w-full max-w-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+              <h3 className="font-bold mb-1 text-center" style={{ color: "var(--text-primary)" }}>Corrigir E-mail</h3>
+              <p className="text-xs text-center mb-4" style={{ color: "var(--text-muted)" }}>
+                {users.find((u) => u.id === editEmailUserId)?.name}
+              </p>
+              <input
+                type="email"
+                className="input-field mb-4"
+                placeholder="novo@email.com"
+                value={editEmailValue}
+                onChange={(e) => setEditEmailValue(e.target.value)}
+                disabled={savingEmail}
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setEditEmailUserId(null); setEditEmailValue(""); }} className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>Cancelar</button>
+                <button onClick={() => void handleSaveEmail()} disabled={savingEmail || !editEmailValue.trim()}
+                  className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-brand-primary text-white cursor-pointer disabled:opacity-50">
+                  {savingEmail ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal ver mensagem */}
+        {selectedMessage && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-end justify-center p-4 pb-24">
+            <div className="rounded-2xl p-5 w-full max-w-sm border flex flex-col gap-3 max-h-[calc(100dvh-8rem)] overflow-y-auto" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{selectedMessage.subject}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    De: {selectedMessage.fromUser.name} · {selectedMessage.fromUser.email}
+                  </p>
+                  {selectedMessage.bolao && (
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>Bolão: {selectedMessage.bolao.nome}</p>
+                  )}
+                </div>
+                <button onClick={() => setSelectedMessage(null)} className="text-xs flex-shrink-0 px-2 py-1 rounded-lg cursor-pointer hover:opacity-70" style={{ background: "var(--bg-card2)", color: "var(--text-muted)" }}>✕</button>
+              </div>
+
+              <div className="rounded-xl p-3 text-sm" style={{ background: "var(--bg-card2)", color: "var(--text-primary)" }}>
+                {selectedMessage.body}
+              </div>
+
+              {selectedMessage.replies.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Respostas</p>
+                  {selectedMessage.replies.map((r) => (
+                    <div key={r.id} className="rounded-xl p-3 border-l-2 border-brand-primary/40 text-sm" style={{ background: "var(--bg-card2)" }}>
+                      <p className="text-[11px] font-semibold mb-1" style={{ color: "var(--text-muted)" }}>{r.fromUser.name}</p>
+                      <p style={{ color: "var(--text-primary)" }}>{r.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Responder</p>
+                <textarea
+                  className="input-field resize-none"
+                  rows={3}
+                  placeholder="Digite sua resposta..."
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  disabled={sendingReply}
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => setSelectedMessage(null)} className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>Fechar</button>
+                  <button onClick={() => void handleSendReply()} disabled={sendingReply || !replyBody.trim()}
+                    className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-brand-primary text-white cursor-pointer disabled:opacity-50">
+                    {sendingReply ? "Enviando..." : "Responder"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -692,6 +883,15 @@ export default function MasterPage() {
                           </button>
                         </div>
                       )}
+                      <div className="mt-2">
+                        <button
+                          onClick={() => { setEditEmailUserId(user.id); setEditEmailValue(user.email); }}
+                          className="w-full py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer hover:opacity-80"
+                          style={{ background: "var(--bg-card2)", color: "var(--text-muted)" }}
+                        >
+                          ✎ Corrigir e-mail
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -809,6 +1009,73 @@ export default function MasterPage() {
                         {match.status === "ENCERRADO" ? "Editar resultado" : "Definir resultado"}
                       </button>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── MENSAGENS ── */}
+        {tab === "mensagens" && (
+          <>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Mensagens recebidas</p>
+              <SyncButton loading={messagesLoading} onClick={() => void fetchMessages()} label="Atualizar" />
+            </div>
+
+            {messagesLoading ? (
+              <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: "var(--bg-card)" }} />)}</div>
+            ) : messages.length === 0 ? (
+              <div className="rounded-2xl p-10 text-center border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+                <p className="text-3xl mb-3">💬</p>
+                <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Nenhuma mensagem</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Quando usuários enviarem mensagens, elas aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {messages.map((msg) => {
+                  const isUnread = msg.status === "ENVIADA";
+                  return (
+                    <button
+                      key={msg.id}
+                      onClick={() => void handleOpenMessage(msg)}
+                      className="w-full text-left rounded-2xl p-4 border transition-all cursor-pointer active:scale-[0.98]"
+                      style={{
+                        background: isUnread ? "rgba(16,185,129,0.05)" : "var(--bg-card)",
+                        borderColor: isUnread ? "rgba(16,185,129,0.3)" : "var(--border-base)",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            {isUnread && <span className="w-2 h-2 rounded-full bg-brand-primary flex-shrink-0" />}
+                            <p className={`text-sm font-semibold truncate ${isUnread ? "text-brand-primary" : ""}`} style={!isUnread ? { color: "var(--text-primary)" } : {}}>
+                              {msg.subject}
+                            </p>
+                          </div>
+                          <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
+                            {msg.fromUser.name} · {msg.fromUser.email}
+                          </p>
+                          {msg.bolao && (
+                            <p className="text-xs truncate mt-0.5" style={{ color: "var(--text-muted)" }}>Bolão: {msg.bolao.nome}</p>
+                          )}
+                          <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{msg.body}</p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            msg.status === "ENVIADA" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                            msg.status === "RESPONDIDA" ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20" :
+                            "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                          }`}>
+                            {msg.status === "ENVIADA" ? "Nova" : msg.status === "RESPONDIDA" ? "Respondida" : "Lida"}
+                          </span>
+                          {msg._count.replies > 0 && (
+                            <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{msg._count.replies} resposta{msg._count.replies !== 1 ? "s" : ""}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
                   );
                 })}
               </div>

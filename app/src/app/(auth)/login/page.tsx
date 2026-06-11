@@ -74,6 +74,9 @@ function LoginContent() {
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-sm font-medium block" style={{ color: "var(--text-secondary)" }} htmlFor="password">Senha</label>
+                <Link href="/esqueci-senha" className="text-xs font-medium transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }}>
+                  Esqueci minha senha
+                </Link>
               </div>
               <input
                 id="password"

@@ -60,17 +60,20 @@ enum PredictionResult {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  name          String
-  email         String        @unique
-  passwordHash  String
-  role          Role          @default(PARTICIPANTE)
-  status        UserStatus    @default(PENDENTE)
-  createdAt     DateTime      @default(now())
-  predictions   Prediction[]
-  scores        Score[]
-  boloesCreated Bolao[]
-  bolaoMembers  BolaoMember[]
+  id                  String               @id @default(cuid())
+  name                String
+  email               String               @unique
+  passwordHash        String
+  role                Role                 @default(PARTICIPANTE)
+  status              UserStatus           @default(PENDENTE)
+  createdAt           DateTime             @default(now())
+  predictions         Prediction[]
+  scores              Score[]
+  boloesCreated       Bolao[]
+  bolaoMembers        BolaoMember[]
+  passwordResetTokens PasswordResetToken[]
+  messagesSent        Message[]            @relation("MessagesSent")
+  messagesReceived    Message[]            @relation("MessagesReceived")
 }
 
 model Bolao {
@@ -86,6 +89,7 @@ model Bolao {
   predictions     Prediction[]
   scores          Score[]
   createdAt       DateTime      @default(now())
+  messages        Message[]
 }
 
 model BolaoMember {
@@ -181,4 +185,43 @@ model Score {
   @@unique([bolaoId, userId, roundId])
   @@index([bolaoId, roundId])
   @@index([bolaoId, userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum MessageStatus {
+  ENVIADA
+  LIDA
+  RESPONDIDA
+}
+
+model Message {
+  id         String        @id @default(cuid())
+  fromUserId String
+  fromUser   User          @relation("MessagesSent", fields: [fromUserId], references: [id])
+  toUserId   String?
+  toUser     User?         @relation("MessagesReceived", fields: [toUserId], references: [id])
+  bolaoId    String?
+  bolao      Bolao?        @relation(fields: [bolaoId], references: [id])
+  subject    String
+  body       String        @db.Text
+  status     MessageStatus @default(ENVIADA)
+  parentId   String?
+  parent     Message?      @relation("MessageReplies", fields: [parentId], references: [id])
+  replies    Message[]     @relation("MessageReplies")
+  createdAt  DateTime      @default(now())
+
+  @@index([toUserId, status])
+  @@index([fromUserId])
+  @@index([bolaoId])
 }
