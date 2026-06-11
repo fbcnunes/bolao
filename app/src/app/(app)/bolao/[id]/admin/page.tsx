@@ -279,11 +279,11 @@ export default function BolaoAdminPage() {
               aria-checked={entradaDireta}
               aria-label="Permitir entrada direta no bolão"
               onClick={() => setEntradaDireta((value) => !value)}
-              className={`relative mt-1 h-7 w-12 flex-shrink-0 rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary/60 ${entradaDireta ? "bg-brand-primary" : ""}`}
+              className={`relative mt-1 h-7 w-12 flex-shrink-0 overflow-hidden rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-primary/60 ${entradaDireta ? "bg-brand-primary" : ""}`}
               style={!entradaDireta ? { background: "var(--bg-card2)" } : {}}
             >
               <span
-                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${entradaDireta ? "translate-x-6" : "translate-x-1"}`}
+                className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${entradaDireta ? "translate-x-5" : "translate-x-0"}`}
               />
             </button>
           </div>
