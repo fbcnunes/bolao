@@ -4,12 +4,27 @@ import { footballData, normalizeTeamName } from "@/lib/football-data";
 import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 
 type FootballDataMatch = {
+  utcDate?: string;
   homeTeam?: { name?: string };
   awayTeam?: { name?: string };
   score?: { fullTime?: { home?: number | null; away?: number | null } };
 };
 
 const CRON_SECRET = process.env.CRON_SECRET;
+
+type PredictionResult = "CASA" | "EMPATE" | "FORA";
+
+function reverseResult(result: PredictionResult): PredictionResult {
+  if (result === "CASA") return "FORA";
+  if (result === "FORA") return "CASA";
+  return result;
+}
+
+function resultFromScore(homeScore: number, awayScore: number): PredictionResult {
+  if (homeScore > awayScore) return "CASA";
+  if (awayScore > homeScore) return "FORA";
+  return "EMPATE";
+}
 
 export async function GET(req: Request) {
   if (CRON_SECRET) {
@@ -37,22 +52,37 @@ export async function GET(req: Request) {
         continue;
       }
 
-      let result: "CASA" | "EMPATE" | "FORA";
-      if (homeScore > awayScore) result = "CASA";
-      else if (awayScore > homeScore) result = "FORA";
-      else result = "EMPATE";
+      const apiResult = resultFromScore(homeScore, awayScore);
 
-      const dbMatch = await prisma.match.findFirst({
-        where: { homeTeam, awayTeam, status: { not: "ENCERRADO" } },
+      const candidateMatches = await prisma.match.findMany({
+        where: {
+          status: { not: "ENCERRADO" },
+          OR: [
+            { homeTeam, awayTeam },
+            { homeTeam: awayTeam, awayTeam: homeTeam },
+          ],
+        },
+        orderBy: { dateTime: "asc" },
         include: {
           predictions: { where: { correct: null } },
         },
       });
+      const apiDate = apiMatch.utcDate ? new Date(apiMatch.utcDate) : null;
+      const dbMatch = apiDate
+        ? candidateMatches.sort(
+            (a, b) =>
+              Math.abs(a.dateTime.getTime() - apiDate.getTime()) -
+              Math.abs(b.dateTime.getTime() - apiDate.getTime())
+          )[0]
+        : candidateMatches[0];
 
       if (!dbMatch) {
         skippedCount++;
         continue;
       }
+
+      const isSameOrder = dbMatch.homeTeam === homeTeam && dbMatch.awayTeam === awayTeam;
+      const result = isSameOrder ? apiResult : reverseResult(apiResult);
 
       await prisma.match.update({
         where: { id: dbMatch.id },

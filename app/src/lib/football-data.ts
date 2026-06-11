@@ -69,6 +69,7 @@ export const TEAM_NAME_MAP: Record<string, string> = {
   "New Zealand": "Nova Zelândia",
   "Spain": "Espanha",
   "Cape Verde": "Cabo Verde",
+  "Cape Verde Islands": "Cabo Verde",
   "Saudi Arabia": "Arábia Saudita",
   "Uruguay": "Uruguai",
   "France": "França",

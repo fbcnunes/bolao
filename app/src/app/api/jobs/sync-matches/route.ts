@@ -40,7 +40,13 @@ export async function GET(req: Request) {
       if (!homeTeam || !awayTeam) continue;
 
       const updated = await prisma.match.updateMany({
-        where: { homeTeam, awayTeam, status: "AGENDADO" },
+        where: {
+          status: "AGENDADO",
+          OR: [
+            { homeTeam, awayTeam },
+            { homeTeam: awayTeam, awayTeam: homeTeam },
+          ],
+        },
         data: { status: "AO_VIVO" },
       });
       updatedCount += updated.count;
@@ -53,7 +59,13 @@ export async function GET(req: Request) {
       if (!homeTeam || !awayTeam) continue;
 
       const updated = await prisma.match.updateMany({
-        where: { homeTeam, awayTeam, status: "AO_VIVO" },
+        where: {
+          status: "AO_VIVO",
+          OR: [
+            { homeTeam, awayTeam },
+            { homeTeam: awayTeam, awayTeam: homeTeam },
+          ],
+        },
         data: { status: "AGENDADO" }, // Temp: sync-results will set ENCERRADO with result
       });
       updatedCount += updated.count;
