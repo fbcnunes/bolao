@@ -8,7 +8,7 @@ import { ptBR } from "date-fns/locale";
 type UserStatus = "PENDENTE" | "ATIVO" | "RECUSADO" | "REMOVIDO";
 type MemberStatus = "PENDENTE" | "ATIVO" | "RECUSADO" | "REMOVIDO";
 type MemberRole = "ADMIN" | "PARTICIPANTE";
-type BolaoStatus = "PENDENTE" | "ATIVO" | "RECUSADO";
+type BolaoStatus = "PENDENTE" | "ATIVO" | "RECUSADO" | "EXCLUIDO";
 type MatchStatus = "AGENDADO" | "AO_VIVO" | "ENCERRADO";
 type PredictionResult = "CASA" | "EMPATE" | "FORA";
 
@@ -91,6 +91,7 @@ const statusConfig = {
   ATIVO:    { label: "Ativo",    class: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" },
   RECUSADO: { label: "Recusado", class: "bg-red-500/10 text-red-400 border border-red-500/20" },
   REMOVIDO: { label: "Removido", class: "bg-slate-500/10 text-slate-300 border border-slate-500/20" },
+  EXCLUIDO: { label: "Excluído", class: "bg-slate-500/10 text-slate-300 border border-slate-500/20" },
 };
 
 function SyncButton({
@@ -130,7 +131,10 @@ export default function MasterPage() {
   // Bolões
   const [boloes, setBoloes] = useState<Bolao[]>([]);
   const [baloesLoading, setBaloesLoading] = useState(true);
-  const [bolaoFilter, setBolaoFilter] = useState<"TODOS" | "PENDENTE" | "ATIVO" | "RECUSADO">("PENDENTE");
+  const [bolaoFilter, setBolaoFilter] = useState<"TODOS" | "PENDENTE" | "ATIVO" | "RECUSADO" | "EXCLUIDO">("PENDENTE");
+  const [deleteTarget, setDeleteTarget] = useState<Bolao | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [dashboardBolaoId, setDashboardBolaoId] = useState<string | null>(null);
   const [dashboardRanking, setDashboardRanking] = useState<RankingEntry[]>([]);
   const [dashboardRankingLoading, setDashboardRankingLoading] = useState(false);
@@ -248,6 +252,25 @@ export default function MasterPage() {
       showMsg("error", "Erro ao processar ação.");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleDeleteBolao = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/boloes/${deleteTarget.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg("success", data.message);
+        setDeleteTarget(null);
+        setDeleteConfirm("");
+        void fetchBoloes();
+      } else showMsg("error", data.message);
+    } catch {
+      showMsg("error", "Erro ao excluir bolão.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -530,6 +553,36 @@ export default function MasterPage() {
           </div>
         )}
 
+        {/* Modal excluir bolão */}
+        {deleteTarget && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center p-4 pb-24">
+            <div className="rounded-2xl p-5 w-full max-w-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+              <h3 className="font-bold mb-1 text-center text-red-400">Excluir Bolão</h3>
+              <p className="text-xs text-center mb-3" style={{ color: "var(--text-muted)" }}>
+                Esta ação remove o bolão de todos os {deleteTarget._count.members} membro{deleteTarget._count.members !== 1 ? "s" : ""} e não pode ser desfeita.
+              </p>
+              <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                Digite <span className="font-bold" style={{ color: "var(--text-primary)" }}>{deleteTarget.nome}</span> para confirmar:
+              </p>
+              <input
+                type="text"
+                className="input-field mb-4"
+                placeholder={deleteTarget.nome}
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                disabled={deleting}
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setDeleteTarget(null); setDeleteConfirm(""); }} className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>Cancelar</button>
+                <button onClick={() => void handleDeleteBolao()} disabled={deleting || deleteConfirm.trim() !== deleteTarget.nome}
+                  className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-red-500/80 text-white cursor-pointer disabled:opacity-50">
+                  {deleting ? "Excluindo..." : "Excluir"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal ver mensagem */}
         {selectedMessage && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-end justify-center p-4 pb-24">
@@ -726,11 +779,11 @@ export default function MasterPage() {
             </div>
 
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-              {(["PENDENTE", "ATIVO", "RECUSADO", "TODOS"] as const).map((f) => (
+              {(["PENDENTE", "ATIVO", "RECUSADO", "EXCLUIDO", "TODOS"] as const).map((f) => (
                 <button key={f} onClick={() => setBolaoFilter(f)}
                   className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${bolaoFilter === f ? "bg-brand-primary text-white" : ""}`}
                   style={bolaoFilter !== f ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}>
-                  {f === "TODOS" ? "Todos" : f === "PENDENTE" ? `Pendentes${pendingBoloes > 0 ? ` (${pendingBoloes})` : ""}` : f === "ATIVO" ? "Ativos" : "Recusados"}
+                  {f === "TODOS" ? "Todos" : f === "PENDENTE" ? `Pendentes${pendingBoloes > 0 ? ` (${pendingBoloes})` : ""}` : f === "ATIVO" ? "Ativos" : f === "RECUSADO" ? "Recusados" : "Excluídos"}
                 </button>
               ))}
             </div>
@@ -770,6 +823,17 @@ export default function MasterPage() {
                           <button onClick={() => handleBolaoAction(b.id, "reject")} disabled={isProcessing}
                             className="flex-1 py-2 text-xs font-semibold rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50">
                             {isProcessing ? "..." : "✕ Recusar"}
+                          </button>
+                        </div>
+                      )}
+                      {b.status !== "EXCLUIDO" && (
+                        <div className="mt-2">
+                          <button
+                            onClick={() => { setDeleteTarget(b); setDeleteConfirm(""); }}
+                            className="w-full py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer hover:opacity-80"
+                            style={{ background: "var(--bg-card2)", color: "rgb(248 113 113 / 0.8)" }}
+                          >
+                            🗑 Excluir bolão
                           </button>
                         </div>
                       )}

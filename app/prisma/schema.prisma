@@ -17,6 +17,7 @@ enum BolaoStatus {
   PENDENTE
   ATIVO
   RECUSADO
+  EXCLUIDO
 }
 
 enum MemberRole {
@@ -89,6 +90,7 @@ model Bolao {
   predictions     Prediction[]
   scores          Score[]
   createdAt       DateTime      @default(now())
+  deletedAt       DateTime?
   messages        Message[]
 }
 

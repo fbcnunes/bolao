@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import TopBar from "@/components/TopBar";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useBolao } from "@/contexts/BolaoContext";
 
 type Member = {
@@ -34,7 +34,8 @@ const statusConfig = {
 
 export default function BolaoAdminPage() {
   const { id: bolaoId } = useParams<{ id: string }>();
-  const { boloes, activeBolao, setActiveBolao } = useBolao();
+  const router = useRouter();
+  const { boloes, activeBolao, setActiveBolao, reload } = useBolao();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -48,6 +49,9 @@ export default function BolaoAdminPage() {
   const [savingPremiacao, setSavingPremiacao] = useState(false);
   const [stats, setStats] = useState<BolaoStats | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const showMsg = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -190,9 +194,29 @@ export default function BolaoAdminPage() {
     }
   };
 
+  const handleDeleteBolao = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/boloes/${bolaoId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        if (activeBolao?.id === bolaoId) setActiveBolao(null);
+        reload();
+        router.push("/meus-boloes");
+      } else {
+        showMsg("error", data.message);
+        setDeleting(false);
+      }
+    } catch {
+      showMsg("error", "Erro ao excluir bolão.");
+      setDeleting(false);
+    }
+  };
+
   const pendingCount = stats?.pendentes ?? members.filter((m) => m.status === "PENDENTE").length;
   const filtered = members.filter((m) => memberFilter === "TODOS" ? true : m.status === memberFilter);
   const isBolaoAdmin = stats?.role === "ADMIN";
+  const bolaoNome = boloes.find((b) => b.id === bolaoId)?.nome ?? "";
   const statCards = [
     ...(isBolaoAdmin ? [{ label: "Total no bolão", value: stats?.total ?? members.length, color: "" }] : []),
     { label: "Ativos no bolão", value: stats?.ativos ?? members.filter((m) => m.status === "ATIVO").length, color: "text-emerald-400" },
@@ -408,6 +432,52 @@ export default function BolaoAdminPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Zona de perigo — só para admin do bolão */}
+        {isBolaoAdmin && (
+          <div className="mt-6 p-4 rounded-2xl border border-red-500/20 bg-red-500/5">
+            <p className="text-xs font-semibold uppercase tracking-wider mb-1 text-red-400">Zona de perigo</p>
+            <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+              Excluir o bolão remove o acesso de todos os participantes. Esta ação não pode ser desfeita.
+            </p>
+            <button
+              onClick={() => { setDeleteConfirm(""); setDeleteOpen(true); }}
+              className="w-full py-2 text-xs font-semibold rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-all cursor-pointer active:scale-95"
+            >
+              🗑 Excluir bolão
+            </button>
+          </div>
+        )}
+
+        {/* Modal excluir bolão */}
+        {deleteOpen && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center p-4 pb-24">
+            <div className="rounded-2xl p-5 w-full max-w-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+              <h3 className="font-bold mb-1 text-center text-red-400">Excluir Bolão</h3>
+              <p className="text-xs text-center mb-3" style={{ color: "var(--text-muted)" }}>
+                Todos os participantes perderão o acesso e serão notificados. Esta ação não pode ser desfeita.
+              </p>
+              <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                Digite <span className="font-bold" style={{ color: "var(--text-primary)" }}>{bolaoNome}</span> para confirmar:
+              </p>
+              <input
+                type="text"
+                className="input-field mb-4"
+                placeholder={bolaoNome}
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                disabled={deleting}
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); }} className="flex-1 py-2.5 text-sm font-semibold rounded-xl cursor-pointer" style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>Cancelar</button>
+                <button onClick={() => void handleDeleteBolao()} disabled={deleting || !bolaoNome || deleteConfirm.trim() !== bolaoNome}
+                  className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-red-500/80 text-white cursor-pointer disabled:opacity-50">
+                  {deleting ? "Excluindo..." : "Excluir"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

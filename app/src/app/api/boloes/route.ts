@@ -21,7 +21,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
 
   const memberships = await prisma.bolaoMember.findMany({
-    where: { userId: session.user.id, status: "ATIVO" },
+    where: { userId: session.user.id, status: "ATIVO", bolao: { status: { not: "EXCLUIDO" } } },
     include: {
       bolao: {
         select: {
