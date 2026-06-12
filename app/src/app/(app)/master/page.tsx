@@ -323,10 +323,10 @@ export default function MasterPage() {
     try {
       const res = await fetch("/api/admin/bonuses", { method: "POST" });
       const data = await res.json();
-      if (res.ok) showMsg("success", `Bônus recalculados! ${data.bonusAwarded} bônus atribuído(s).`);
-      else showMsg("error", data.message || "Erro ao calcular bônus.");
+      if (res.ok) showMsg("success", `Pontuação e bônus recalculados! ${data.bonusAwarded} bônus atribuído(s).`);
+      else showMsg("error", data.message || "Erro ao recalcular pontuação e bônus.");
     } catch {
-      showMsg("error", "Erro ao calcular bônus.");
+      showMsg("error", "Erro ao recalcular pontuação e bônus.");
     } finally {
       setCalculatingBonus(false);
     }
@@ -1031,7 +1031,7 @@ export default function MasterPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                {calculatingBonus ? "Calculando..." : "Recalcular bônus"}
+                {calculatingBonus ? "Calculando..." : "Recalcular pontuação e bônus"}
               </button>
             </div>
 

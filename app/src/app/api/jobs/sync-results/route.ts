@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { footballData, normalizeTeamName } from "@/lib/football-data";
 import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
+import { recalculateScoresAndRoundBonuses } from "@/lib/scoring";
 
 type FootballDataMatch = {
   utcDate?: string;
@@ -63,9 +64,6 @@ export async function GET(req: Request) {
           ],
         },
         orderBy: { dateTime: "asc" },
-        include: {
-          predictions: { where: { correct: null } },
-        },
       });
       const apiDate = apiMatch.utcDate ? new Date(apiMatch.utcDate) : null;
       const dbMatch = apiDate
@@ -89,51 +87,12 @@ export async function GET(req: Request) {
         data: { status: "ENCERRADO", result },
       });
 
-      const PHASE_POINTS: Record<string, number> = {
-        GRUPOS: 10, PLAYOFFS: 15, OITAVAS: 20, QUARTAS: 30, SEMI: 40, FINAL: 50,
-      };
-
-      for (const prediction of dbMatch.predictions) {
-        const isCorrect = prediction.prediction === result;
-
-        if (isCorrect) {
-          const pointsEarned = PHASE_POINTS[dbMatch.phase] ?? 10;
-
-          await prisma.prediction.update({
-            where: { id: prediction.id },
-            data: { correct: true },
-          });
-
-          const round = await prisma.round.findFirst({
-            where: { phase: dbMatch.phase, number: dbMatch.round },
-          });
-
-          if (round) {
-            await prisma.score.upsert({
-              where: { bolaoId_userId_roundId: { bolaoId: prediction.bolaoId, userId: prediction.userId, roundId: round.id } },
-              update: {
-                roundPoints: { increment: pointsEarned },
-                accumulatedPoints: { increment: pointsEarned },
-              },
-              create: {
-                bolaoId: prediction.bolaoId,
-                userId: prediction.userId,
-                roundId: round.id,
-                roundPoints: pointsEarned,
-                accumulatedPoints: pointsEarned,
-              },
-            });
-          }
-        } else {
-          await prisma.prediction.update({
-            where: { id: prediction.id },
-            data: { correct: false },
-          });
-        }
-      }
-
       processedCount++;
     }
+
+    const recalculation = processedCount > 0
+      ? await recalculateScoresAndRoundBonuses(prisma)
+      : null;
 
     await markSyncCompleted(SYNC_KEYS.matches);
 
@@ -141,6 +100,7 @@ export async function GET(req: Request) {
       message: "Resultados sincronizados",
       processedCount,
       skippedCount,
+      recalculation,
     });
   } catch (error) {
     console.error("sync-results error:", error);

@@ -1,6 +1,6 @@
 # Pontuação do Bolão — Copa do Mundo
 
-Este documento consolida a pontuação sugerida para o bolão da Copa do Mundo, com pesos progressivos por fase, bônus diário e critérios de desempate final.
+Este documento consolida a pontuação sugerida para o bolão da Copa do Mundo, com pesos progressivos por fase, bônus por rodada e critérios de desempate final.
 
 ## 1. Regras Gerais
 
@@ -30,14 +30,16 @@ Não haverá pontuação por placar exato. A pontuação será atribuída apenas
 
 
 
-## 3. Bônus Diário e por Rodada
+## 3. Bônus por Rodada
 
 | Situação | Pontuação |
 |---|---:|
-| Maior pontuação do dia e rodada | +10 pontos |
-| Empate na maior pontuação do dia/rodada | Todos os empatados recebem +10 pontos |
+| Maior pontuação da rodada | +10 pontos |
+| Empate na maior pontuação da rodada | Todos os empatados recebem +10 pontos |
 
-O bônus tem como objetivo premiar o melhor desempenho pontual sem alterar excessivamente o equilíbrio geral do bolão.
+Na fase de grupos, as rodadas são 1, 2 e 3. No mata-mata, cada fase funciona como uma rodada lógica. O bônus só é aplicado após todos os jogos da rodada serem encerrados.
+
+O bônus tem como objetivo premiar o melhor desempenho por bloco competitivo sem alterar excessivamente o equilíbrio geral do bolão.
 
 ---
 

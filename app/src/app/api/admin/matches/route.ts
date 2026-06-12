@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { recalculateScoresAndRoundBonuses } from "@/lib/scoring";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -59,61 +60,16 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ message: "Resultado obrigatório para encerrar jogo" }, { status: 400 });
   }
 
-  const match = await prisma.match.update({
+  await prisma.match.update({
     where: { id: matchId },
     data: { status, result: status === "ENCERRADO" ? result : null },
-    include: {
-      predictions: { where: { correct: null } },
-    },
   });
 
-  if (status === "ENCERRADO" && result) {
-    const PHASE_POINTS: Record<string, number> = {
-      GRUPOS: 10, PLAYOFFS: 15, OITAVAS: 20, QUARTAS: 30, SEMI: 40, FINAL: 50,
-    };
-
-    for (const prediction of match.predictions) {
-      const isCorrect = prediction.prediction === result;
-
-      if (isCorrect) {
-        const pointsEarned = PHASE_POINTS[match.phase] ?? 10;
-
-        await prisma.prediction.update({
-          where: { id: prediction.id },
-          data: { correct: true },
-        });
-
-        const round = await prisma.round.findFirst({
-          where: { phase: match.phase, number: match.round },
-        });
-
-        if (round) {
-          await prisma.score.upsert({
-              where: { bolaoId_userId_roundId: { bolaoId: prediction.bolaoId, userId: prediction.userId, roundId: round.id } },
-              update: {
-                roundPoints: { increment: pointsEarned },
-                accumulatedPoints: { increment: pointsEarned },
-              },
-              create: {
-                bolaoId: prediction.bolaoId,
-                userId: prediction.userId,
-                roundId: round.id,
-              roundPoints: pointsEarned,
-              accumulatedPoints: pointsEarned,
-            },
-          });
-        }
-      } else {
-        await prisma.prediction.update({
-          where: { id: prediction.id },
-          data: { correct: false },
-        });
-      }
-    }
-  }
+  const { predictionsProcessed, bonusAwarded } = await recalculateScoresAndRoundBonuses(prisma);
 
   return NextResponse.json({
-    message: "Jogo atualizado com sucesso",
-    predictionsProcessed: match.predictions.length,
+    message: "Jogo atualizado e pontuação recalculada com sucesso",
+    predictionsProcessed,
+    bonusAwarded,
   });
 }

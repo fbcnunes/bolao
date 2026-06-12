@@ -75,22 +75,22 @@ export default function RegrasPage() {
           </div>
         </section>
 
-        {/* Bônus diário */}
+        {/* Bônus por rodada */}
         <section className="rounded-2xl p-5 border" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
           <h2 className="text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
             <span className="w-6 h-6 rounded-lg bg-brand-secondary/20 text-brand-secondary flex items-center justify-center text-xs">2</span>
-            Bônus Diário e por Rodada
+            Bônus por Rodada
           </h2>
           <div className="space-y-3">
             <div className="flex items-start gap-3 p-3 rounded-xl bg-brand-secondary/10 border border-brand-secondary/20">
               <span className="text-brand-secondary text-lg mt-0.5">⚡</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Melhor pontuação do dia</p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>O participante com maior pontuação no dia recebe <span className="text-brand-secondary font-bold">+10 pts</span> de bônus.</p>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Melhor pontuação da rodada</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>O participante com maior pontuação em cada rodada recebe <span className="text-brand-secondary font-bold">+10 pts</span> de bônus.</p>
               </div>
             </div>
             <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>
-              Em caso de empate na maior pontuação do dia, todos os empatados recebem o bônus de +10 pontos.
+              Na fase de grupos, as rodadas são 1, 2 e 3. No mata-mata, cada fase funciona como uma rodada. O bônus só é aplicado após todos os jogos da rodada serem encerrados; em caso de empate, todos os empatados recebem o bônus.
             </p>
           </div>
         </section>

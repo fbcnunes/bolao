@@ -7,6 +7,8 @@ import { useBolao } from "@/contexts/BolaoContext";
 
 type RankingEntry = {
   user: { id: string; name: string };
+  predictionPoints: number;
+  bonusPoints: number;
   totalPoints: number;
   correctPredictions: number;
 };
@@ -99,7 +101,10 @@ export default function RankingPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-brand-primary font-bold text-lg">{myEntry.totalPoints.toFixed(1)} pts</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{myEntry.correctPredictions} acertos</p>
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {myEntry.predictionPoints.toFixed(1)} palpites
+                      {myEntry.bonusPoints > 0 && ` + ${myEntry.bonusPoints.toFixed(1)} bônus`}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -121,7 +126,9 @@ export default function RankingPage() {
                       <p className={`text-sm font-bold mt-1 bg-gradient-to-r ${podiumColors[idx]} text-transparent bg-clip-text`}>
                         {entry.totalPoints.toFixed(1)}
                       </p>
-                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{entry.correctPredictions} ✓</p>
+                      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                        {entry.bonusPoints > 0 ? `+${entry.bonusPoints.toFixed(1)} bônus` : `${entry.correctPredictions} ✓`}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -158,7 +165,10 @@ export default function RankingPage() {
                       <p className={`text-sm font-semibold truncate ${isMe ? "text-brand-primary" : ""}`} style={!isMe ? { color: "var(--text-primary)" } : {}}>
                         {entry.user.name} {isMe && <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>(você)</span>}
                       </p>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{entry.correctPredictions} acerto{entry.correctPredictions !== 1 ? "s" : ""}</p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        {entry.correctPredictions} acerto{entry.correctPredictions !== 1 ? "s" : ""} · {entry.predictionPoints.toFixed(1)} pts palpites
+                        {entry.bonusPoints > 0 && ` · +${entry.bonusPoints.toFixed(1)} bônus`}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className={`font-bold text-sm ${isMe ? "text-brand-primary" : ""}`} style={!isMe ? { color: "var(--text-primary)" } : {}}>

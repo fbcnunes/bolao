@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useSession } from "next-auth/react";
@@ -230,6 +230,8 @@ export default function MatchPredictionsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const optionsScrollRef = useRef<HTMLDivElement | null>(null);
+  const optionRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   const selectedMatchId = searchParams.get("matchId");
   const activeBolaoId = activeBolao?.id;
@@ -267,20 +269,55 @@ export default function MatchPredictionsPage() {
 
   const filteredOptions = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const liveFirst = [...availableMatches].sort((a, b) => {
-      if (a.status === "AO_VIVO" && b.status !== "AO_VIVO") return -1;
-      if (a.status !== "AO_VIVO" && b.status === "AO_VIVO") return 1;
+    const chronological = [...availableMatches].sort((a, b) => {
       return new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
     });
 
-    if (!q) return liveFirst;
+    if (!q) return chronological;
 
-    return liveFirst.filter((match) =>
+    return chronological.filter((match) =>
       match.homeTeam.toLowerCase().includes(q) ||
       match.awayTeam.toLowerCase().includes(q) ||
       match.group.toLowerCase().includes(q)
     );
   }, [availableMatches, search]);
+
+  const scrollTargetMatchId = useMemo(() => {
+    if (filteredOptions.length === 0) return null;
+
+    if (selectedMatchId && filteredOptions.some((match) => match.id === selectedMatchId)) {
+      return selectedMatchId;
+    }
+
+    if (search.trim()) {
+      return filteredOptions[0].id;
+    }
+
+    const liveMatch = filteredOptions.find((match) => match.status === "AO_VIVO");
+    if (liveMatch) return liveMatch.id;
+
+    const nextMatch = filteredOptions.find((match) => {
+      return match.status === "AGENDADO" && !match.predictionsVisible;
+    });
+
+    return nextMatch?.id ?? filteredOptions[0].id;
+  }, [filteredOptions, search, selectedMatchId]);
+
+  useEffect(() => {
+    const container = optionsScrollRef.current;
+    const target = scrollTargetMatchId ? optionRefs.current.get(scrollTargetMatchId) : null;
+
+    if (!container || !target) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      container.scrollTo({
+        top: Math.max(target.offsetTop - container.offsetTop, 0),
+        behavior: "auto",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [scrollTargetMatchId, filteredOptions.length]);
 
   const handleSelectMatch = (matchId: string) => {
     router.replace(`/palpites-jogo?matchId=${matchId}`);
@@ -336,7 +373,7 @@ export default function MatchPredictionsPage() {
                 />
               </div>
 
-              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              <div ref={optionsScrollRef} className="max-h-56 space-y-2 overflow-y-auto pr-1">
                 {filteredOptions.length === 0 ? (
                   <p className="py-4 text-center text-sm" style={{ color: "var(--text-muted)" }}>Nenhum jogo encontrado.</p>
                 ) : (
@@ -345,6 +382,13 @@ export default function MatchPredictionsPage() {
                     return (
                       <button
                         key={match.id}
+                        ref={(node) => {
+                          if (node) {
+                            optionRefs.current.set(match.id, node);
+                          } else {
+                            optionRefs.current.delete(match.id);
+                          }
+                        }}
                         onClick={() => handleSelectMatch(match.id)}
                         className={`w-full rounded-xl border p-3 text-left transition-all cursor-pointer active:scale-[0.99] ${active ? "border-brand-primary/60 bg-brand-primary/10" : ""}`}
                         style={!active ? { background: "var(--bg-card2)", borderColor: "var(--border-base)" } : {}}

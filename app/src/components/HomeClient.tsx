@@ -371,7 +371,7 @@ export default function HomeClient() {
   const filteredMatches = useMemo(() => {
     const q = countrySearch.trim().toLowerCase();
     return matches.filter((m) => {
-      if (statusFilter === "agendados" && m.status !== "AGENDADO") return false;
+      if (statusFilter === "agendados" && m.status === "ENCERRADO") return false;
       if (groupFilter && m.group !== groupFilter) return false;
       if (roundFilter !== null && `${m.phase}-${m.round}` !== roundFilter) return false;
       if (q && !m.homeTeam.toLowerCase().includes(q) && !m.awayTeam.toLowerCase().includes(q)) return false;

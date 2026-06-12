@@ -172,6 +172,8 @@ model Round {
   number          Int
   bonusCalculated Boolean    @default(false)
   scores          Score[]
+
+  @@unique([phase, number])
 }
 
 model Score {

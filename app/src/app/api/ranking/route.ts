@@ -67,6 +67,8 @@ export async function GET(req: Request) {
           scores: {
             where: { bolaoId },
             select: {
+              roundPoints: true,
+              bonus: true,
               accumulatedPoints: true
             }
           },
@@ -79,9 +81,13 @@ export async function GET(req: Request) {
 
       // Calcular o total e ordenar
       ranking = users.map(user => {
+        const predictionPoints = user.scores.reduce((sum, score) => sum + score.roundPoints, 0);
+        const bonusPoints = user.scores.reduce((sum, score) => sum + score.bonus, 0);
         const totalPoints = user.scores.reduce((sum, score) => sum + score.accumulatedPoints, 0);
         return {
           user: { id: user.id, name: user.name },
+          predictionPoints,
+          bonusPoints,
           totalPoints,
           correctPredictions: user.predictions.length
         };
