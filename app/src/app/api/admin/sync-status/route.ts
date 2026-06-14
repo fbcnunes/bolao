@@ -14,5 +14,6 @@ export async function GET() {
   return NextResponse.json({
     odds: statuses.odds?.toISOString() ?? null,
     matches: statuses.matches?.toISOString() ?? null,
+    results: statuses.results?.toISOString() ?? null,
   });
 }

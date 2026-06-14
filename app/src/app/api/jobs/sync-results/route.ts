@@ -94,7 +94,7 @@ export async function GET(req: Request) {
       ? await recalculateScoresAndRoundBonuses(prisma)
       : null;
 
-    await markSyncCompleted(SYNC_KEYS.matches);
+    await markSyncCompleted(SYNC_KEYS.results);
 
     return NextResponse.json({
       message: "Resultados sincronizados",

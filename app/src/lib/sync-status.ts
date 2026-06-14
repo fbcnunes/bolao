@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 export const SYNC_KEYS = {
   odds: "odds",
   matches: "matches",
+  results: "results",
 } as const;
 
 type SyncKey = (typeof SYNC_KEYS)[keyof typeof SYNC_KEYS];
@@ -26,11 +27,12 @@ export async function getSyncStatuses() {
   const rows = await prisma.$queryRaw<SyncStatusRow[]>`
     SELECT \`key\`, syncedAt
     FROM SyncStatus
-    WHERE \`key\` IN (${SYNC_KEYS.odds}, ${SYNC_KEYS.matches})
+    WHERE \`key\` IN (${SYNC_KEYS.odds}, ${SYNC_KEYS.matches}, ${SYNC_KEYS.results})
   `;
 
   return {
     odds: rows.find((row) => row.key === SYNC_KEYS.odds)?.syncedAt ?? null,
     matches: rows.find((row) => row.key === SYNC_KEYS.matches)?.syncedAt ?? null,
+    results: rows.find((row) => row.key === SYNC_KEYS.results)?.syncedAt ?? null,
   };
 }

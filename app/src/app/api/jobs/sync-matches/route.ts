@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { MatchStatus } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { footballData, normalizeTeamName } from "@/lib/football-data";
 import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
@@ -6,6 +7,8 @@ import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 const CRON_SECRET = process.env.CRON_SECRET;
 
 type FootballDataMatch = {
+  utcDate?: string | null;
+  status?: string | null;
   homeTeam?: { name?: string | null } | null;
   awayTeam?: { name?: string | null } | null;
 };
@@ -23,61 +26,65 @@ export async function GET(req: Request) {
   }
 
   try {
-    const [liveData, finishedData] = await Promise.all([
-      footballData.getLiveMatches(),
-      footballData.getFinishedMatches(),
-    ]);
-
-    const liveMatches = (liveData as FootballDataMatchesResponse).matches ?? [];
-    const finishedMatches = (finishedData as FootballDataMatchesResponse).matches ?? [];
+    const allData = await footballData.getAllMatches();
+    const apiMatches = (allData as FootballDataMatchesResponse).matches ?? [];
 
     let updatedCount = 0;
+    let rescheduledCount = 0;
 
-    // Mark live matches
-    for (const apiMatch of liveMatches) {
+    for (const apiMatch of apiMatches) {
       const homeTeam = normalizeTeamName(apiMatch.homeTeam?.name ?? "");
       const awayTeam = normalizeTeamName(apiMatch.awayTeam?.name ?? "");
       if (!homeTeam || !awayTeam) continue;
 
-      const updated = await prisma.match.updateMany({
+      const dbMatches = await prisma.match.findMany({
         where: {
-          status: "AGENDADO",
+          status: { not: "ENCERRADO" },
           OR: [
             { homeTeam, awayTeam },
             { homeTeam: awayTeam, awayTeam: homeTeam },
           ],
         },
-        data: { status: "AO_VIVO" },
+        select: { id: true, dateTime: true },
       });
-      updatedCount += updated.count;
-    }
 
-    // Mark finished matches (without calculating points — sync-results handles that)
-    for (const apiMatch of finishedMatches) {
-      const homeTeam = normalizeTeamName(apiMatch.homeTeam?.name ?? "");
-      const awayTeam = normalizeTeamName(apiMatch.awayTeam?.name ?? "");
-      if (!homeTeam || !awayTeam) continue;
+      const apiDate = apiMatch.utcDate ? new Date(apiMatch.utcDate) : null;
+      const dbMatch = apiDate
+        ? dbMatches.sort(
+            (a, b) =>
+              Math.abs(a.dateTime.getTime() - apiDate.getTime()) -
+              Math.abs(b.dateTime.getTime() - apiDate.getTime())
+          )[0]
+        : dbMatches[0];
 
-      const updated = await prisma.match.updateMany({
-        where: {
-          status: "AO_VIVO",
-          OR: [
-            { homeTeam, awayTeam },
-            { homeTeam: awayTeam, awayTeam: homeTeam },
-          ],
-        },
-        data: { status: "AGENDADO" }, // Temp: sync-results will set ENCERRADO with result
+      if (!dbMatch) continue;
+
+      const status: MatchStatus = apiMatch.status === "IN_PLAY" || apiMatch.status === "PAUSED"
+        ? MatchStatus.AO_VIVO
+        : MatchStatus.AGENDADO;
+      const data = {
+        status,
+        ...(apiDate ? { dateTime: apiDate } : {}),
+      };
+
+      if (apiDate && dbMatch.dateTime.getTime() !== apiDate.getTime()) {
+        rescheduledCount++;
+      }
+
+      await prisma.match.update({
+        where: { id: dbMatch.id },
+        data,
       });
-      updatedCount += updated.count;
+      updatedCount++;
     }
 
     await markSyncCompleted(SYNC_KEYS.matches);
 
     return NextResponse.json({
       message: "Status dos jogos atualizado",
-      liveCount: liveMatches.length,
-      finishedCount: finishedMatches.length,
+      apiCount: apiMatches.length,
       updatedCount,
+      rescheduledCount,
     });
   } catch (error) {
     console.error("sync-matches error:", error);

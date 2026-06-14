@@ -61,6 +61,7 @@ type MasterMatch = {
 type SyncStatus = {
   odds: string | null;
   matches: string | null;
+  results: string | null;
 };
 
 type RankingEntry = {
@@ -162,7 +163,7 @@ export default function MasterPage() {
   const [saving, setSaving] = useState(false);
   const [calculatingBonus, setCalculatingBonus] = useState(false);
   const [syncingOdds, setSyncingOdds] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ odds: null, matches: null });
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ odds: null, matches: null, results: null });
 
   // Mensagens
   const [messages, setMessages] = useState<Message[]>([]);
@@ -228,6 +229,7 @@ export default function MasterPage() {
         setSyncStatus({
           odds: typeof data.odds === "string" ? data.odds : null,
           matches: typeof data.matches === "string" ? data.matches : null,
+          results: typeof data.results === "string" ? data.results : null,
         });
       }
     } catch {
@@ -1035,7 +1037,7 @@ export default function MasterPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
               <div className="rounded-xl border px-3 py-2.5" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
                 <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Última sync de odds</p>
                 <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
@@ -1046,6 +1048,12 @@ export default function MasterPage() {
                 <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Última sync de partidas</p>
                 <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                   {formatSyncDate(syncStatus.matches)}
+                </p>
+              </div>
+              <div className="rounded-xl border px-3 py-2.5" style={{ background: "var(--bg-card)", borderColor: "var(--border-base)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Última sync de resultados</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  {formatSyncDate(syncStatus.results)}
                 </p>
               </div>
             </div>
