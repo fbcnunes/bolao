@@ -65,6 +65,7 @@ export const TEAM_NAME_MAP: Record<string, string> = {
   "Tunisia": "Tunísia",
   "Belgium": "Bélgica",
   "Egypt": "Egito",
+  "IR Iran": "Irã",
   "Iran": "Irã",
   "New Zealand": "Nova Zelândia",
   "Spain": "Espanha",

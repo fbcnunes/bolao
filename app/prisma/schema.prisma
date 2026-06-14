@@ -114,6 +114,7 @@ model BolaoMember {
 model Match {
   id          String            @id @default(cuid())
   apiId       Int               @unique
+  fifaMatchId String?           @unique
   phase       MatchPhase
   round       Int
   group       String            @default("")
@@ -128,6 +129,30 @@ model Match {
   @@index([status])
   @@index([dateTime])
   @@index([homeTeam, awayTeam, status])
+}
+
+model LiveScoreMatch {
+  id           Int       @id @default(autoincrement())
+  idMatch      String    @unique @map("id_match") @db.VarChar(64)
+  idStage      String?   @map("id_stage") @db.VarChar(64)
+  homeTeam     String?   @map("home_team")
+  awayTeam     String?   @map("away_team")
+  homeScore    Int?      @map("home_score")
+  awayScore    Int?      @map("away_score")
+  homePenalty  Int?      @map("home_penalty")
+  awayPenalty  Int?      @map("away_penalty")
+  status       String    @default("scheduled") @db.VarChar(32)
+  minute       String?   @db.VarChar(32)
+  matchDateTime DateTime @map("match_datetime")
+  groupName    String?   @map("group_name")
+  round        String?
+  homeTeamFlag String?   @map("home_team_flag") @db.Text
+  awayTeamFlag String?   @map("away_team_flag") @db.Text
+  lastUpdated  DateTime  @map("last_updated")
+
+  @@index([status])
+  @@index([matchDateTime])
+  @@index([status, matchDateTime])
 }
 
 model Odd {
