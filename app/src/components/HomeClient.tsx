@@ -44,6 +44,10 @@ const PHASE_LABELS: Record<string, string> = {
   QUARTAS: "Quartas", SEMI: "Semifinal", FINAL: "Final",
 };
 
+function getMatchDayKey(dateTime: string) {
+  return format(new Date(dateTime), "yyyy-MM-dd");
+}
+
 // ─── Match row ────────────────────────────────────────────────────────────────
 
 function MatchRow({
@@ -362,8 +366,7 @@ export default function HomeClient() {
   const availableDates = useMemo(() => {
     const days = new Set<string>();
     matches.forEach((m) => {
-      const local = new Date(new Date(m.dateTime).getTime() - 3 * 60 * 60 * 1000);
-      days.add(format(local, "yyyy-MM-dd"));
+      days.add(getMatchDayKey(m.dateTime));
     });
     return Array.from(days).sort();
   }, [matches]);
@@ -376,8 +379,7 @@ export default function HomeClient() {
       if (roundFilter !== null && `${m.phase}-${m.round}` !== roundFilter) return false;
       if (q && !m.homeTeam.toLowerCase().includes(q) && !m.awayTeam.toLowerCase().includes(q)) return false;
       if (dateFilter) {
-        const local = format(new Date(new Date(m.dateTime).getTime() - 3 * 60 * 60 * 1000), "yyyy-MM-dd");
-        if (local !== dateFilter) return false;
+        if (getMatchDayKey(m.dateTime) !== dateFilter) return false;
       }
       return true;
     });
@@ -428,8 +430,7 @@ export default function HomeClient() {
   const matchesByDay = useMemo(() => {
     const acc: Record<string, Match[]> = {};
     filteredMatches.forEach((m) => {
-      const local = new Date(new Date(m.dateTime).getTime() - 3 * 60 * 60 * 1000);
-      const key = format(local, "yyyy-MM-dd");
+      const key = getMatchDayKey(m.dateTime);
       if (!acc[key]) acc[key] = [];
       acc[key].push(m);
     });
