@@ -9,7 +9,7 @@ import {
   resultFromScore,
   reverseResult,
 } from "@/lib/match-sync";
-import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
+import { getSyncStatus, markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 import { recalculateScoresAndRoundBonuses } from "@/lib/scoring";
 
 type FootballDataMatch = {
@@ -25,11 +25,14 @@ type LiveScoreFinishedMatchRow = {
   awayTeam: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  homePenalty: number | null;
+  awayPenalty: number | null;
   status: string;
   matchDateTime: Date;
 };
 
 const CRON_SECRET = process.env.CRON_SECRET;
+const FALLBACK_MIN_INTERVAL_MS = 10 * 60 * 1000;
 
 export async function GET(req: Request) {
   if (CRON_SECRET) {
@@ -42,7 +45,9 @@ export async function GET(req: Request) {
   try {
     let processedCount = 0;
     let skippedCount = 0;
+    let unchangedCount = 0;
     let source = "livescore";
+    let mode = "fast";
 
     const liveScoreMatches = await prisma.$queryRaw<LiveScoreFinishedMatchRow[]>`
       SELECT
@@ -51,6 +56,8 @@ export async function GET(req: Request) {
         away_team AS awayTeam,
         home_score AS homeScore,
         away_score AS awayScore,
+        home_penalty AS homePenalty,
+        away_penalty AS awayPenalty,
         status,
         match_datetime AS matchDateTime
       FROM LiveScoreMatch
@@ -93,16 +100,38 @@ export async function GET(req: Request) {
       }
 
       const apiResult = resultFromScore(liveScoreMatch.homeScore, liveScoreMatch.awayScore);
-      const result = isSameTeamOrder(dbMatch, { homeTeam, awayTeam })
-        ? apiResult
-        : reverseResult(apiResult);
+      const sameTeamOrder = isSameTeamOrder(dbMatch, { homeTeam, awayTeam });
+      const result = sameTeamOrder ? apiResult : reverseResult(apiResult);
+      const homeScore = sameTeamOrder ? liveScoreMatch.homeScore : liveScoreMatch.awayScore;
+      const awayScore = sameTeamOrder ? liveScoreMatch.awayScore : liveScoreMatch.homeScore;
+      const homePenalty = sameTeamOrder ? liveScoreMatch.homePenalty : liveScoreMatch.awayPenalty;
+      const awayPenalty = sameTeamOrder ? liveScoreMatch.awayPenalty : liveScoreMatch.homePenalty;
+
+      const changed =
+        dbMatch.fifaMatchId !== liveScoreMatch.idMatch ||
+        dbMatch.dateTime.getTime() !== liveScoreMatch.matchDateTime.getTime() ||
+        dbMatch.status !== "ENCERRADO" ||
+        dbMatch.result !== result ||
+        dbMatch.homeScore !== homeScore ||
+        dbMatch.awayScore !== awayScore ||
+        dbMatch.homePenalty !== homePenalty ||
+        dbMatch.awayPenalty !== awayPenalty;
+
+      if (!changed) {
+        unchangedCount++;
+        continue;
+      }
 
       await prisma.$executeRaw`
         UPDATE \`Match\`
         SET fifaMatchId = ${liveScoreMatch.idMatch},
             dateTime = ${liveScoreMatch.matchDateTime},
             status = 'ENCERRADO',
-            result = ${result}
+            result = ${result},
+            homeScore = ${homeScore},
+            awayScore = ${awayScore},
+            homePenalty = ${homePenalty},
+            awayPenalty = ${awayPenalty}
         WHERE id = ${dbMatch.id}
       `;
 
@@ -111,6 +140,22 @@ export async function GET(req: Request) {
 
     if (liveScoreMatches.length === 0) {
       source = "football-data";
+      mode = "fallback";
+
+      const lastSync = await getSyncStatus(SYNC_KEYS.results);
+      if (lastSync && Date.now() - lastSync.getTime() < FALLBACK_MIN_INTERVAL_MS) {
+        return NextResponse.json({
+          message: "Resultados não sincronizados: fallback aguardando intervalo mínimo",
+          source,
+          mode,
+          skippedByThrottle: true,
+          processedCount,
+          skippedCount,
+          unchangedCount,
+          recalculation: null,
+        });
+      }
+
       const data = await footballData.getFinishedMatches();
       const apiMatches: FootballDataMatch[] = data.matches ?? [];
 
@@ -135,7 +180,7 @@ export async function GET(req: Request) {
             awayTeam,
             dateTime: apiDate,
           },
-          { excludeFinished: true }
+          { excludeFinished: false }
         );
 
         if (!dbMatch) {
@@ -146,15 +191,42 @@ export async function GET(req: Request) {
         const result = isSameTeamOrder(dbMatch, { homeTeam, awayTeam })
           ? apiResult
           : reverseResult(apiResult);
+        const sameTeamOrder = isSameTeamOrder(dbMatch, { homeTeam, awayTeam });
+        const dbHomeScore = sameTeamOrder ? homeScore : awayScore;
+        const dbAwayScore = sameTeamOrder ? awayScore : homeScore;
 
-        await prisma.match.update({
-          where: { id: dbMatch.id },
-          data: {
-            status: "ENCERRADO",
-            result,
-            ...(apiDate ? { dateTime: apiDate } : {}),
-          },
-        });
+        const changed =
+          dbMatch.status !== "ENCERRADO" ||
+          dbMatch.result !== result ||
+          dbMatch.homeScore !== dbHomeScore ||
+          dbMatch.awayScore !== dbAwayScore ||
+          (apiDate ? dbMatch.dateTime.getTime() !== apiDate.getTime() : false);
+
+        if (!changed) {
+          unchangedCount++;
+          continue;
+        }
+
+        if (apiDate) {
+          await prisma.$executeRaw`
+            UPDATE \`Match\`
+            SET dateTime = ${apiDate},
+                status = 'ENCERRADO',
+                result = ${result},
+                homeScore = ${dbHomeScore},
+                awayScore = ${dbAwayScore}
+            WHERE id = ${dbMatch.id}
+          `;
+        } else {
+          await prisma.$executeRaw`
+            UPDATE \`Match\`
+            SET status = 'ENCERRADO',
+                result = ${result},
+                homeScore = ${dbHomeScore},
+                awayScore = ${dbAwayScore}
+            WHERE id = ${dbMatch.id}
+          `;
+        }
 
         processedCount++;
       }
@@ -169,8 +241,10 @@ export async function GET(req: Request) {
     return NextResponse.json({
       message: "Resultados sincronizados",
       source,
+      mode,
       processedCount,
       skippedCount,
+      unchangedCount,
       recalculation,
     });
   } catch (error) {

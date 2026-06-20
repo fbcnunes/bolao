@@ -163,6 +163,7 @@ export default function MasterPage() {
   const [saving, setSaving] = useState(false);
   const [calculatingBonus, setCalculatingBonus] = useState(false);
   const [syncingOdds, setSyncingOdds] = useState(false);
+  const [syncingResults, setSyncingResults] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ odds: null, matches: null, results: null });
 
   // Mensagens
@@ -350,6 +351,28 @@ export default function MasterPage() {
       showMsg("error", "Erro ao atualizar odds.");
     } finally {
       setSyncingOdds(false);
+    }
+  };
+
+  const handleSyncResults = async () => {
+    setSyncingResults(true);
+    try {
+      const res = await fetch("/api/admin/results/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(
+          "success",
+          `Resultados atualizados! ${data.processedCount} jogo(s) processado(s), ${data.unchangedCount} sem alteração.`
+        );
+        fetchMatches();
+        void fetchSyncStatus();
+      } else {
+        showMsg("error", data.message || "Erro ao atualizar resultados.");
+      }
+    } catch {
+      showMsg("error", "Erro ao atualizar resultados.");
+    } finally {
+      setSyncingResults(false);
     }
   };
 
@@ -1020,13 +1043,20 @@ export default function MasterPage() {
         {/* ── JOGOS ── */}
         {tab === "jogos" && (
           <>
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
               <button onClick={handleSyncOdds} disabled={syncingOdds}
                 className="py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-brand-primary/15 text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                 <svg className={`w-4 h-4 ${syncingOdds ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 9A8 8 0 006.3 3.7L4 6m0 9a8 8 0 0013.7 5.3L20 18" />
                 </svg>
                 {syncingOdds ? "Atualizando..." : "Atualizar odds"}
+              </button>
+              <button onClick={handleSyncResults} disabled={syncingResults}
+                className="py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg className={`w-4 h-4 ${syncingResults ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 9A8 8 0 006.3 3.7L4 6m0 9a8 8 0 0013.7 5.3L20 18" />
+                </svg>
+                {syncingResults ? "Atualizando..." : "Atualizar resultados"}
               </button>
               <button onClick={handleCalculateBonus} disabled={calculatingBonus}
                 className="py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 bg-brand-secondary/15 text-brand-secondary border border-brand-secondary/30 hover:bg-brand-secondary/25 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">

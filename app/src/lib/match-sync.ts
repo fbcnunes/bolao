@@ -1,4 +1,4 @@
-import { MatchStatus, PredictionResult, Prisma, PrismaClient } from "@prisma/client";
+import { MatchStatus, PredictionResult, PrismaClient } from "@prisma/client";
 
 import { normalizeTeamName } from "@/lib/football-data";
 
@@ -7,6 +7,13 @@ type MatchCandidate = {
   dateTime: Date;
   homeTeam: string;
   awayTeam: string;
+  fifaMatchId: string | null;
+  status: MatchStatus;
+  result: PredictionResult | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  homePenalty: number | null;
+  awayPenalty: number | null;
 };
 
 export type ExternalMatchForLookup = {
@@ -90,14 +97,14 @@ export async function findMatchForExternalMatch(
   if (externalMatch.fifaMatchId) {
     const matches = options.excludeFinished
       ? await prisma.$queryRaw<MatchCandidate[]>`
-          SELECT id, dateTime, homeTeam, awayTeam
+          SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
           FROM \`Match\`
           WHERE fifaMatchId = ${externalMatch.fifaMatchId}
             AND status <> ${MatchStatus.ENCERRADO}
           LIMIT 1
         `
       : await prisma.$queryRaw<MatchCandidate[]>`
-          SELECT id, dateTime, homeTeam, awayTeam
+          SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
           FROM \`Match\`
           WHERE fifaMatchId = ${externalMatch.fifaMatchId}
           LIMIT 1
@@ -109,26 +116,22 @@ export async function findMatchForExternalMatch(
 
   if (!externalMatch.homeTeam || !externalMatch.awayTeam) return null;
 
-  const where: Prisma.MatchWhereInput = {
-    OR: [
-      { homeTeam: externalMatch.homeTeam, awayTeam: externalMatch.awayTeam },
-      { homeTeam: externalMatch.awayTeam, awayTeam: externalMatch.homeTeam },
-    ],
-  };
-
-  if (options.excludeFinished) {
-    where.status = { not: MatchStatus.ENCERRADO };
-  }
-
-  const candidateMatches = await prisma.match.findMany({
-    where,
-    select: {
-      id: true,
-      dateTime: true,
-      homeTeam: true,
-      awayTeam: true,
-    },
-  });
+  const candidateMatches = options.excludeFinished
+    ? await prisma.$queryRaw<MatchCandidate[]>`
+        SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
+        FROM \`Match\`
+        WHERE status <> ${MatchStatus.ENCERRADO}
+          AND (
+            (homeTeam = ${externalMatch.homeTeam} AND awayTeam = ${externalMatch.awayTeam})
+            OR (homeTeam = ${externalMatch.awayTeam} AND awayTeam = ${externalMatch.homeTeam})
+          )
+      `
+    : await prisma.$queryRaw<MatchCandidate[]>`
+        SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
+        FROM \`Match\`
+        WHERE (homeTeam = ${externalMatch.homeTeam} AND awayTeam = ${externalMatch.awayTeam})
+           OR (homeTeam = ${externalMatch.awayTeam} AND awayTeam = ${externalMatch.homeTeam})
+      `;
 
   if (candidateMatches.length === 0) return null;
   if (!externalMatch.dateTime) return candidateMatches[0];

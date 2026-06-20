@@ -1,0 +1,5 @@
+ALTER TABLE `Match`
+  ADD COLUMN `homeScore` INTEGER NULL,
+  ADD COLUMN `awayScore` INTEGER NULL,
+  ADD COLUMN `homePenalty` INTEGER NULL,
+  ADD COLUMN `awayPenalty` INTEGER NULL;

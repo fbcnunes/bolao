@@ -7,9 +7,10 @@ import {
   statusFromFootballData,
   statusFromLiveScore,
 } from "@/lib/match-sync";
-import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
+import { getSyncStatus, markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 
 const CRON_SECRET = process.env.CRON_SECRET;
+const FALLBACK_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
 type FootballDataMatch = {
   utcDate?: string | null;
@@ -42,7 +43,9 @@ export async function GET(req: Request) {
     let updatedCount = 0;
     let rescheduledCount = 0;
     let skippedCount = 0;
+    let unchangedCount = 0;
     let source = "livescore";
+    let mode = "fast";
 
     const liveScoreMatches = await prisma.$queryRaw<LiveScoreMatchRow[]>`
       SELECT
@@ -97,6 +100,16 @@ export async function GET(req: Request) {
         rescheduledCount++;
       }
 
+      const changed =
+        dbMatch.fifaMatchId !== data.fifaMatchId ||
+        dbMatch.status !== data.status ||
+        dbMatch.dateTime.getTime() !== data.dateTime.getTime();
+
+      if (!changed) {
+        unchangedCount++;
+        continue;
+      }
+
       await prisma.$executeRaw`
         UPDATE \`Match\`
         SET fifaMatchId = ${data.fifaMatchId},
@@ -109,6 +122,22 @@ export async function GET(req: Request) {
 
     if (liveScoreMatches.length === 0) {
       source = "football-data";
+      mode = "fallback";
+
+      const lastSync = await getSyncStatus(SYNC_KEYS.matches);
+      if (lastSync && Date.now() - lastSync.getTime() < FALLBACK_MIN_INTERVAL_MS) {
+        return NextResponse.json({
+          message: "Status dos jogos não sincronizado: fallback aguardando intervalo mínimo",
+          source,
+          mode,
+          skippedByThrottle: true,
+          updatedCount,
+          rescheduledCount,
+          skippedCount,
+          unchangedCount,
+        });
+      }
+
       const allData = await footballData.getAllMatches();
       const apiMatches = (allData as FootballDataMatchesResponse).matches ?? [];
 
@@ -151,6 +180,15 @@ export async function GET(req: Request) {
           rescheduledCount++;
         }
 
+        const changed =
+          dbMatch.status !== data.status ||
+          (apiDate ? dbMatch.dateTime.getTime() !== apiDate.getTime() : false);
+
+        if (!changed) {
+          unchangedCount++;
+          continue;
+        }
+
         await prisma.match.update({
           where: { id: dbMatch.id },
           data,
@@ -164,10 +202,12 @@ export async function GET(req: Request) {
     return NextResponse.json({
       message: "Status dos jogos atualizado",
       source,
+      mode,
       apiCount: source === "livescore" ? liveScoreMatches.length : undefined,
       updatedCount,
       rescheduledCount,
       skippedCount,
+      unchangedCount,
     });
   } catch (error) {
     console.error("sync-matches error:", error);

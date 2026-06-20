@@ -121,6 +121,10 @@ model Match {
   homeTeam    String
   awayTeam    String
   dateTime    DateTime
+  homeScore   Int?
+  awayScore   Int?
+  homePenalty Int?
+  awayPenalty Int?
   result      PredictionResult?
   status      MatchStatus       @default(AGENDADO)
   odds        Odd[]

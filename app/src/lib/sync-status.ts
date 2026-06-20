@@ -36,3 +36,14 @@ export async function getSyncStatuses() {
     results: rows.find((row) => row.key === SYNC_KEYS.results)?.syncedAt ?? null,
   };
 }
+
+export async function getSyncStatus(key: SyncKey) {
+  const rows = await prisma.$queryRaw<SyncStatusRow[]>`
+    SELECT \`key\`, syncedAt
+    FROM SyncStatus
+    WHERE \`key\` = ${key}
+    LIMIT 1
+  `;
+
+  return rows[0]?.syncedAt ?? null;
+}
