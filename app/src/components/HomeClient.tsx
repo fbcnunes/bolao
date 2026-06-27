@@ -447,7 +447,7 @@ export default function HomeClient() {
   return (
     <>
       {/* Champion picker and tabs have their own px-4 via page layout */}
-      {activeBolao && allTeams.length > 0 && <ChampionPicker bolaoId={activeBolao.id} teams={allTeams} />}
+      {activeBolao && allTeams.length > 0 && <ChampionPicker key={activeBolao.id} bolaoId={activeBolao.id} teams={allTeams} />}
 
       {/* Status tabs */}
       <div className="flex gap-2 mb-3">
