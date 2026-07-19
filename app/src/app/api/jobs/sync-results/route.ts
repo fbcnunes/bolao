@@ -6,8 +6,7 @@ import {
   isFinishedExternalStatus,
   isSameTeamOrder,
   normalizeExternalTeamName,
-  resultFromScore,
-  reverseResult,
+  finalResultFromScore,
 } from "@/lib/match-sync";
 import { getSyncStatus, markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
 import { recalculateScoresAndRoundBonuses } from "@/lib/scoring";
@@ -99,13 +98,18 @@ export async function GET(req: Request) {
         continue;
       }
 
-      const apiResult = resultFromScore(liveScoreMatch.homeScore, liveScoreMatch.awayScore);
       const sameTeamOrder = isSameTeamOrder(dbMatch, { homeTeam, awayTeam });
-      const result = sameTeamOrder ? apiResult : reverseResult(apiResult);
       const homeScore = sameTeamOrder ? liveScoreMatch.homeScore : liveScoreMatch.awayScore;
       const awayScore = sameTeamOrder ? liveScoreMatch.awayScore : liveScoreMatch.homeScore;
       const homePenalty = sameTeamOrder ? liveScoreMatch.homePenalty : liveScoreMatch.awayPenalty;
       const awayPenalty = sameTeamOrder ? liveScoreMatch.awayPenalty : liveScoreMatch.homePenalty;
+      const result = finalResultFromScore(
+        dbMatch.phase,
+        homeScore,
+        awayScore,
+        homePenalty,
+        awayPenalty
+      );
 
       const changed =
         dbMatch.fifaMatchId !== liveScoreMatch.idMatch ||
@@ -170,7 +174,6 @@ export async function GET(req: Request) {
           continue;
         }
 
-        const apiResult = resultFromScore(homeScore, awayScore);
         const apiDate = apiMatch.utcDate ? new Date(apiMatch.utcDate) : null;
 
         const dbMatch = await findMatchForExternalMatch(
@@ -188,12 +191,10 @@ export async function GET(req: Request) {
           continue;
         }
 
-        const result = isSameTeamOrder(dbMatch, { homeTeam, awayTeam })
-          ? apiResult
-          : reverseResult(apiResult);
         const sameTeamOrder = isSameTeamOrder(dbMatch, { homeTeam, awayTeam });
         const dbHomeScore = sameTeamOrder ? homeScore : awayScore;
         const dbAwayScore = sameTeamOrder ? awayScore : homeScore;
+        const result = finalResultFromScore(dbMatch.phase, dbHomeScore, dbAwayScore);
 
         const changed =
           dbMatch.status !== "ENCERRADO" ||

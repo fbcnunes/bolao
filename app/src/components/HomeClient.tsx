@@ -35,9 +35,12 @@ type Match = {
   predictions: Prediction[];
 };
 
-const RESULT_OPTIONS: ("CASA" | "EMPATE" | "FORA")[] = ["CASA", "EMPATE", "FORA"];
+type PredictionResult = "CASA" | "EMPATE" | "FORA";
+
+const GROUP_RESULT_OPTIONS: PredictionResult[] = ["CASA", "EMPATE", "FORA"];
+const KNOCKOUT_RESULT_OPTIONS: PredictionResult[] = ["CASA", "EMPATE", "FORA"];
 const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
-const BTN_LABELS: Record<"CASA" | "EMPATE" | "FORA", string> = { CASA: "1", EMPATE: "X", FORA: "2" };
+const BTN_LABELS: Record<PredictionResult, string> = { CASA: "1", EMPATE: "X", FORA: "2" };
 const PHASE_ORDER = ["GRUPOS", "PLAYOFFS", "OITAVAS", "QUARTAS", "SEMI", "FINAL"];
 const PHASE_LABELS: Record<string, string> = {
   GRUPOS: "Rodada", PLAYOFFS: "16 avos", OITAVAS: "Oitavas",
@@ -48,6 +51,25 @@ function getMatchDayKey(dateTime: string) {
   return format(new Date(dateTime), "yyyy-MM-dd");
 }
 
+function isKnockoutPhase(phase: string) {
+  return phase !== "GRUPOS";
+}
+
+function getResultOptions(phase: string) {
+  return isKnockoutPhase(phase) ? KNOCKOUT_RESULT_OPTIONS : GROUP_RESULT_OPTIONS;
+}
+
+function getFavoritePick(match: Match): PredictionResult | null {
+  const latestOdd = match.odds[0];
+  if (!latestOdd) return null;
+
+  if (!isKnockoutPhase(match.phase) || latestOdd.favorite !== "EMPATE") {
+    return latestOdd.favorite;
+  }
+
+  return latestOdd.oddHome <= latestOdd.oddAway ? "CASA" : "FORA";
+}
+
 // ─── Match row ────────────────────────────────────────────────────────────────
 
 function MatchRow({
@@ -56,7 +78,7 @@ function MatchRow({
   isLast,
 }: {
   match: Match;
-  onSave: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => Promise<void>;
+  onSave: (matchId: string, prediction: PredictionResult, oddId: string | null) => Promise<void>;
   isLast: boolean;
 }) {
   const latestOdd = match.odds[0];
@@ -64,8 +86,8 @@ function MatchRow({
   const isLocked = match.status !== "AGENDADO" || new Date() >= new Date(match.dateTime);
   const isCorrect = existingPrediction?.correct;
 
-  const [saving, setSaving] = useState<"CASA" | "EMPATE" | "FORA" | null>(null);
-  const [savedPick, setSavedPick] = useState<"CASA" | "EMPATE" | "FORA" | undefined>(existingPrediction?.prediction);
+  const [saving, setSaving] = useState<PredictionResult | null>(null);
+  const [savedPick, setSavedPick] = useState<PredictionResult | undefined>(existingPrediction?.prediction);
   const [flashError, setFlashError] = useState(false);
 
   useEffect(() => {
@@ -74,7 +96,7 @@ function MatchRow({
 
   const currentPick = savedPick;
 
-  const oddValues: Record<"CASA" | "EMPATE" | "FORA", number | undefined> = {
+  const oddValues: Record<PredictionResult, number | undefined> = {
     CASA: latestOdd?.oddHome,
     EMPATE: latestOdd?.oddDraw,
     FORA: latestOdd?.oddAway,
@@ -83,8 +105,11 @@ function MatchRow({
   const accentColor =
     isCorrect === true ? "#10B981" : isCorrect === false ? "rgba(239,68,68,0.6)" : "transparent";
 
-  const handleClick = async (option: "CASA" | "EMPATE" | "FORA") => {
-    if (isLocked || saving) return;
+  const resultOptions = getResultOptions(match.phase);
+  const favoritePick = getFavoritePick(match);
+
+  const handleClick = async (option: PredictionResult) => {
+    if (isLocked || saving || (isKnockoutPhase(match.phase) && option === "EMPATE")) return;
     setSaving(option);
     try {
       await onSave(match.id, option, latestOdd?.id ?? null);
@@ -130,7 +155,7 @@ function MatchRow({
               <span className="text-[9px] font-bold text-red-400 animate-pulse">● Ao Vivo</span>
             ) : match.status === "ENCERRADO" ? (
               <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
-                Encerrado{match.result === "EMPATE" ? " · Empate" : ""}
+                Encerrado{!isKnockoutPhase(match.phase) && match.result === "EMPATE" ? " · Empate" : ""}
               </span>
             ) : (
               <span className="text-[9px] tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -142,12 +167,14 @@ function MatchRow({
 
         {/* Buttons */}
         <div className="flex gap-1 flex-shrink-0">
-          {RESULT_OPTIONS.map((option) => {
+          {resultOptions.map((option) => {
             const isSelected = currentPick === option;
             const isWinner = match.status === "ENCERRADO" && match.result === option;
             const isWrong = isLocked && isSelected && match.result && match.result !== option;
-            const isFavorite = latestOdd?.favorite === option;
+            const isFavorite = favoritePick === option;
             const isSavingThis = saving === option;
+            const isBlockedDraw = isKnockoutPhase(match.phase) && option === "EMPATE";
+            const isDisabled = isLocked || isBlockedDraw;
 
             let cls = "relative flex flex-col items-center justify-center w-10 h-10 rounded-lg text-[11px] font-bold transition-all duration-150 flex-shrink-0";
             if (isWrong) cls += " bg-red-500/15 text-red-400 ring-1 ring-red-500/30";
@@ -155,13 +182,14 @@ function MatchRow({
               cls += " bg-brand-primary text-white shadow-sm shadow-brand-primary/40";
               if (isWinner && !isSelected) cls += " ring-2 ring-brand-primary/40";
             }
-            cls += isLocked ? " cursor-not-allowed opacity-70" : saving ? " cursor-wait" : " cursor-pointer active:scale-90";
+            cls += isDisabled ? " cursor-not-allowed opacity-45" : saving ? " cursor-wait" : " cursor-pointer active:scale-90";
 
             return (
               <button
                 key={option}
                 onClick={() => handleClick(option)}
-                disabled={isLocked || !!saving}
+                disabled={isDisabled || !!saving}
+                aria-label={isBlockedDraw ? "Empate indisponível no mata-mata" : undefined}
                 className={cls}
                 style={!isWrong && !(isSelected || isWinner) ? { background: "var(--bg-card)", color: "var(--text-secondary)" } : {}}
               >
@@ -204,7 +232,7 @@ function DaySection({
 }: {
   date: string;
   matches: Match[];
-  onSave: (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => Promise<void>;
+  onSave: (matchId: string, prediction: PredictionResult, oddId: string | null) => Promise<void>;
 }) {
   const dayLabel = format(new Date(date + "T12:00:00"), "EEE, dd 'de' MMM", { locale: ptBR });
   const pickedCount = matches.filter((m) => m.predictions[0]).length;
@@ -320,7 +348,7 @@ export default function HomeClient() {
     void Promise.resolve().then(fetchMatches);
   }, [fetchMatches]);
 
-  const handleSave = useCallback(async (matchId: string, prediction: "CASA" | "EMPATE" | "FORA", oddId: string | null) => {
+  const handleSave = useCallback(async (matchId: string, prediction: PredictionResult, oddId: string | null) => {
     const res = await fetch("/api/predictions/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -397,7 +425,7 @@ export default function HomeClient() {
     const now = new Date();
     const toFill = filteredMatches.filter((m) => {
       const isLocked = m.status !== "AGENDADO" || now >= new Date(m.dateTime);
-      return !isLocked && !m.predictions[0] && m.odds[0];
+      return !isLocked && !m.predictions[0] && getFavoritePick(m);
     });
     if (toFill.length === 0) return;
 
@@ -406,11 +434,14 @@ export default function HomeClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         bolaoId: activeBolao?.id,
-        predictions: toFill.map((m) => ({
-          matchId: m.id,
-          prediction: m.odds[0].favorite,
-          oddId: m.odds[0].id,
-        })),
+        predictions: toFill.map((m) => {
+          const prediction = getFavoritePick(m);
+          return {
+            matchId: m.id,
+            prediction,
+            oddId: m.odds[0].id,
+          };
+        }).filter((item): item is { matchId: string; prediction: PredictionResult; oddId: string } => Boolean(item.prediction)),
       }),
     });
     if (res.ok) {
@@ -418,7 +449,8 @@ export default function HomeClient() {
         prev.map((m) => {
           const fill = toFill.find((f) => f.id === m.id);
           if (!fill) return m;
-          return { ...m, predictions: [{ prediction: fill.odds[0].favorite, correct: null }] };
+          const prediction = getFavoritePick(fill);
+          return prediction ? { ...m, predictions: [{ prediction, correct: null }] } : m;
         })
       );
     } else {

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { MatchPhase } from "@prisma/client";
+import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { footballData, normalizeTeamName } from "@/lib/football-data";
 import {
@@ -29,7 +31,27 @@ type LiveScoreMatchRow = {
   awayTeam: string | null;
   status: string;
   matchDateTime: Date;
+  round: string | null;
 };
+
+function phaseFromLiveScoreRound(round: string | null | undefined): MatchPhase | null {
+  switch ((round ?? "").trim().toLowerCase()) {
+    case "round of 32":
+      return MatchPhase.PLAYOFFS;
+    case "round of 16":
+      return MatchPhase.OITAVAS;
+    case "quarter-final":
+    case "quarter final":
+      return MatchPhase.QUARTAS;
+    case "semi-final":
+    case "semi final":
+      return MatchPhase.SEMI;
+    case "final":
+      return MatchPhase.FINAL;
+    default:
+      return null;
+  }
+}
 
 export async function GET(req: Request) {
   if (CRON_SECRET) {
@@ -44,6 +66,7 @@ export async function GET(req: Request) {
     let rescheduledCount = 0;
     let skippedCount = 0;
     let unchangedCount = 0;
+    let createdCount = 0;
     let source = "livescore";
     let mode = "fast";
 
@@ -53,7 +76,8 @@ export async function GET(req: Request) {
         home_team AS homeTeam,
         away_team AS awayTeam,
         status,
-        match_datetime AS matchDateTime
+        match_datetime AS matchDateTime,
+        round
       FROM LiveScoreMatch
       WHERE home_team IS NOT NULL
         AND away_team IS NOT NULL
@@ -86,7 +110,22 @@ export async function GET(req: Request) {
       );
 
       if (!dbMatch) {
-        skippedCount++;
+        const phase = phaseFromLiveScoreRound(liveScoreMatch.round);
+        const apiId = Number.parseInt(liveScoreMatch.idMatch, 10);
+
+        if (!phase || !Number.isSafeInteger(apiId)) {
+          skippedCount++;
+          continue;
+        }
+
+        await prisma.$executeRaw`
+          INSERT INTO \`Match\`
+            (id, apiId, fifaMatchId, phase, round, \`group\`, homeTeam, awayTeam, dateTime, status)
+          VALUES
+            (${randomUUID()}, ${apiId}, ${liveScoreMatch.idMatch}, ${phase}, 1, "", ${homeTeam}, ${awayTeam}, ${liveScoreMatch.matchDateTime}, ${status})
+        `;
+
+        createdCount++;
         continue;
       }
 
@@ -132,6 +171,7 @@ export async function GET(req: Request) {
           mode,
           skippedByThrottle: true,
           updatedCount,
+          createdCount,
           rescheduledCount,
           skippedCount,
           unchangedCount,
@@ -205,6 +245,7 @@ export async function GET(req: Request) {
       mode,
       apiCount: source === "livescore" ? liveScoreMatches.length : undefined,
       updatedCount,
+      createdCount,
       rescheduledCount,
       skippedCount,
       unchangedCount,

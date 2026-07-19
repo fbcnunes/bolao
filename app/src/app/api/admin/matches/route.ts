@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 import { recalculateScoresAndRoundBonuses } from "@/lib/scoring";
+import { MatchPhase } from "@prisma/client";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -58,6 +59,19 @@ export async function PATCH(req: Request) {
 
   if (status === "ENCERRADO" && !result) {
     return NextResponse.json({ message: "Resultado obrigatório para encerrar jogo" }, { status: 400 });
+  }
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { phase: true },
+  });
+
+  if (!match) {
+    return NextResponse.json({ message: "Jogo não encontrado" }, { status: 404 });
+  }
+
+  if (status === "ENCERRADO" && match.phase !== MatchPhase.GRUPOS && result === "EMPATE") {
+    return NextResponse.json({ message: "No mata-mata, o resultado deve ser casa ou fora" }, { status: 400 });
   }
 
   await prisma.match.update({

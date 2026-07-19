@@ -48,7 +48,8 @@ type MatchPrediction = MatchOption & {
   }[];
 };
 
-const RESULT_OPTIONS: PredictionResult[] = ["CASA", "EMPATE", "FORA"];
+const GROUP_RESULT_OPTIONS: PredictionResult[] = ["CASA", "EMPATE", "FORA"];
+const KNOCKOUT_RESULT_OPTIONS: PredictionResult[] = ["CASA", "EMPATE", "FORA"];
 const OPTION_SHORT: Record<PredictionResult, string> = { CASA: "1", EMPATE: "X", FORA: "2" };
 const STATUS_LABELS: Record<MatchStatus, string> = {
   AGENDADO: "Agendado",
@@ -60,6 +61,14 @@ function getPickLabel(match: MatchOption, prediction: PredictionResult) {
   if (prediction === "CASA") return match.homeTeam;
   if (prediction === "FORA") return match.awayTeam;
   return "Empate";
+}
+
+function isKnockoutPhase(phase: string) {
+  return phase !== "GRUPOS";
+}
+
+function getResultOptions(phase: string) {
+  return isKnockoutPhase(phase) ? KNOCKOUT_RESULT_OPTIONS : GROUP_RESULT_OPTIONS;
 }
 
 function statusClass(status: MatchStatus) {
@@ -165,7 +174,7 @@ function MatchPredictionsCard({ match, currentUserId }: { match: MatchPrediction
                 {match.summary.totalPredictions}/{match.summary.totalMembers} palpites
               </p>
             </div>
-            {RESULT_OPTIONS.map((option) => (
+            {getResultOptions(match.phase).map((option) => (
               <DistributionBar key={option} match={match} option={option} />
             ))}
             {match.summary.missingPredictions > 0 && (

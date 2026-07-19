@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
-import { PredictionResult } from "@prisma/client";
+import { MatchPhase, PredictionResult } from "@prisma/client";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     const matches = await prisma.match.findMany({
       where: { id: { in: matchIds } },
-      select: { id: true, status: true, dateTime: true },
+      select: { id: true, phase: true, status: true, dateTime: true },
     });
     const matchMap = new Map(matches.map((m) => [m.id, m]));
 
@@ -55,6 +55,10 @@ export async function POST(req: Request) {
       }
       if (!VALID_PREDICTIONS.has(prediction)) {
         errors.push({ matchId, message: "Palpite inválido" });
+        continue;
+      }
+      if (match.phase !== MatchPhase.GRUPOS && prediction === "EMPATE") {
+        errors.push({ matchId, message: "No mata-mata, escolha apenas casa ou fora" });
         continue;
       }
       if (match.status !== "AGENDADO" || now >= match.dateTime) {

@@ -12,6 +12,17 @@ type BolaoStatus = "PENDENTE" | "ATIVO" | "RECUSADO" | "EXCLUIDO";
 type MatchStatus = "AGENDADO" | "AO_VIVO" | "ENCERRADO";
 type PredictionResult = "CASA" | "EMPATE" | "FORA";
 
+const GROUP_RESULT_OPTIONS: PredictionResult[] = ["CASA", "EMPATE", "FORA"];
+const KNOCKOUT_RESULT_OPTIONS: PredictionResult[] = ["CASA", "FORA"];
+
+function isKnockoutPhase(phase: string) {
+  return phase !== "GRUPOS";
+}
+
+function getResultOptions(phase: string) {
+  return isKnockoutPhase(phase) ? KNOCKOUT_RESULT_OPTIONS : GROUP_RESULT_OPTIONS;
+}
+
 type User = {
   id: string;
   name: string;
@@ -159,7 +170,7 @@ export default function MasterPage() {
   const [matches, setMatches] = useState<MasterMatch[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchFilter, setMatchFilter] = useState<"AGENDADO" | "AO_VIVO" | "ENCERRADO" | "TODOS">("AGENDADO");
-  const [editing, setEditing] = useState<{ matchId: string; status: MatchStatus; result: PredictionResult | null } | null>(null);
+  const [editing, setEditing] = useState<{ matchId: string; phase: string; status: MatchStatus; result: PredictionResult | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [calculatingBonus, setCalculatingBonus] = useState(false);
   const [syncingOdds, setSyncingOdds] = useState(false);
@@ -563,7 +574,7 @@ export default function MasterPage() {
                 <div className="mb-5">
                   <p className="text-xs mb-2 text-center" style={{ color: "var(--text-muted)" }}>Resultado</p>
                   <div className="flex gap-2">
-                    {(["CASA", "EMPATE", "FORA"] as const).map((r) => (
+                    {getResultOptions(editing.phase).map((r) => (
                       <button key={r} onClick={() => setEditing((e) => e ? { ...e, result: r } : e)}
                         className={`flex-1 py-2 text-xs font-semibold rounded-xl cursor-pointer ${editing.result === r ? "bg-brand-primary text-white" : ""}`}
                         style={editing.result !== r ? { background: "var(--bg-card2)", color: "var(--text-secondary)" } : {}}>
@@ -1171,7 +1182,12 @@ export default function MasterPage() {
                         </p>
                       )}
                       <button
-                        onClick={() => setEditing({ matchId: match.id, status: match.status !== "ENCERRADO" ? "ENCERRADO" : match.status, result: match.result })}
+                        onClick={() => setEditing({
+                          matchId: match.id,
+                          phase: match.phase,
+                          status: match.status !== "ENCERRADO" ? "ENCERRADO" : match.status,
+                          result: isKnockoutPhase(match.phase) && match.result === "EMPATE" ? null : match.result,
+                        })}
                         className="w-full py-2 text-xs font-semibold rounded-xl transition-all cursor-pointer hover:opacity-70"
                         style={{ background: "var(--bg-card2)", color: "var(--text-secondary)" }}>
                         {match.status === "ENCERRADO" ? "Editar resultado" : "Definir resultado"}

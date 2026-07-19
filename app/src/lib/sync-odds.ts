@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { oddsApi, normalizeOddsTeamName } from "@/lib/odds-api";
 import { markSyncCompleted, SYNC_KEYS } from "@/lib/sync-status";
+import { isKnockoutPhase } from "@/lib/match-sync";
 
 export async function syncWorldCupOdds() {
   const events = await oddsApi.getWorldCupOdds();
@@ -47,17 +48,18 @@ export async function syncWorldCupOdds() {
       (o) => normalizeOddsTeamName(o.name) === dbMatch.awayTeam
     );
 
-    if (!dbHomeOutcome || !dbAwayOutcome || !drawOutcome) {
+    if (!dbHomeOutcome || !dbAwayOutcome || (!drawOutcome && !isKnockoutPhase(dbMatch.phase))) {
       skippedCount++;
       continue;
     }
 
     const oddHome = dbHomeOutcome.price;
-    const oddDraw = drawOutcome.price;
+    const oddDraw = drawOutcome?.price ?? 0;
     const oddAway = dbAwayOutcome.price;
 
     let favorite: "CASA" | "EMPATE" | "FORA";
-    if (oddHome <= oddAway && oddHome <= oddDraw) favorite = "CASA";
+    if (isKnockoutPhase(dbMatch.phase)) favorite = oddHome <= oddAway ? "CASA" : "FORA";
+    else if (oddHome <= oddAway && oddHome <= oddDraw) favorite = "CASA";
     else if (oddAway <= oddHome && oddAway <= oddDraw) favorite = "FORA";
     else favorite = "EMPATE";
 

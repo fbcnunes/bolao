@@ -129,6 +129,9 @@ export default function RegrasPage() {
               <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
                 Cada palpite de jogo deve ser enviado antes do horário de início da respectiva partida. Após o início do jogo, o palpite daquele jogo não pode mais ser criado ou alterado.
               </p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+                Na fase de grupos, é possível escolher casa, empate ou fora. No mata-mata, o palpite é apenas casa ou fora, valendo o vencedor final após prorrogação e pênaltis.
+              </p>
             </div>
           </div>
         </section>

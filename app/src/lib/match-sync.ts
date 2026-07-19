@@ -1,4 +1,4 @@
-import { MatchStatus, PredictionResult, PrismaClient } from "@prisma/client";
+import { MatchPhase, MatchStatus, PredictionResult, PrismaClient } from "@prisma/client";
 
 import { normalizeTeamName } from "@/lib/football-data";
 
@@ -7,6 +7,7 @@ type MatchCandidate = {
   dateTime: Date;
   homeTeam: string;
   awayTeam: string;
+  phase: MatchPhase;
   fifaMatchId: string | null;
   status: MatchStatus;
   result: PredictionResult | null;
@@ -73,10 +74,37 @@ export function statusFromFootballData(status: string | null | undefined): Match
   return MatchStatus.AGENDADO;
 }
 
+export function isKnockoutPhase(phase: MatchPhase | string): boolean {
+  return phase !== MatchPhase.GRUPOS;
+}
+
 export function resultFromScore(homeScore: number, awayScore: number): PredictionResult {
   if (homeScore > awayScore) return PredictionResult.CASA;
   if (awayScore > homeScore) return PredictionResult.FORA;
   return PredictionResult.EMPATE;
+}
+
+export function finalResultFromScore(
+  phase: MatchPhase | string,
+  homeScore: number,
+  awayScore: number,
+  homePenalty?: number | null,
+  awayPenalty?: number | null
+): PredictionResult | null {
+  const regularResult = resultFromScore(homeScore, awayScore);
+
+  if (!isKnockoutPhase(phase) || regularResult !== PredictionResult.EMPATE) {
+    return regularResult;
+  }
+
+  if (homePenalty === null || homePenalty === undefined || awayPenalty === null || awayPenalty === undefined) {
+    return null;
+  }
+
+  if (homePenalty > awayPenalty) return PredictionResult.CASA;
+  if (awayPenalty > homePenalty) return PredictionResult.FORA;
+
+  return null;
 }
 
 export function reverseResult(result: PredictionResult): PredictionResult {
@@ -97,14 +125,14 @@ export async function findMatchForExternalMatch(
   if (externalMatch.fifaMatchId) {
     const matches = options.excludeFinished
       ? await prisma.$queryRaw<MatchCandidate[]>`
-          SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
+          SELECT id, dateTime, homeTeam, awayTeam, phase, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
           FROM \`Match\`
           WHERE fifaMatchId = ${externalMatch.fifaMatchId}
             AND status <> ${MatchStatus.ENCERRADO}
           LIMIT 1
         `
       : await prisma.$queryRaw<MatchCandidate[]>`
-          SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
+          SELECT id, dateTime, homeTeam, awayTeam, phase, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
           FROM \`Match\`
           WHERE fifaMatchId = ${externalMatch.fifaMatchId}
           LIMIT 1
@@ -118,7 +146,7 @@ export async function findMatchForExternalMatch(
 
   const candidateMatches = options.excludeFinished
     ? await prisma.$queryRaw<MatchCandidate[]>`
-        SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
+        SELECT id, dateTime, homeTeam, awayTeam, phase, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
         FROM \`Match\`
         WHERE status <> ${MatchStatus.ENCERRADO}
           AND (
@@ -127,7 +155,7 @@ export async function findMatchForExternalMatch(
           )
       `
     : await prisma.$queryRaw<MatchCandidate[]>`
-        SELECT id, dateTime, homeTeam, awayTeam, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
+        SELECT id, dateTime, homeTeam, awayTeam, phase, fifaMatchId, status, result, homeScore, awayScore, homePenalty, awayPenalty
         FROM \`Match\`
         WHERE (homeTeam = ${externalMatch.homeTeam} AND awayTeam = ${externalMatch.awayTeam})
            OR (homeTeam = ${externalMatch.awayTeam} AND awayTeam = ${externalMatch.homeTeam})
